@@ -2,7 +2,7 @@
 
 LocalSettle is an open-source peer-to-peer marketplace and wallet app built around Stellar. This repository contains the NestJS API that manages accounts, offers, orders, payment methods, chat, KYC status, direct transfer preparation, and escrow coordination.
 
-The frontend lives in the companion [`iKash-frontend` repository](https://github.com/iKa-h/iKash-frontend). The applications are independently versioned repositories.
+The frontend lives in the companion [LocalSettle frontend repository](https://github.com/Local-Settle/local-settle-frontend). The applications are independently versioned repositories.
 
 ## Architecture
 
