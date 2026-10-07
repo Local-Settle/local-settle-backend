@@ -118,3 +118,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, security, commit, and pull req
 ## Security
 
 Never commit or log private keys, JWTs, webhook secrets, full bank details, or identity documents. Keep the escrow operator key in a secret manager with restricted access. Treat fiat payment evidence, profile data, and KYC status as sensitive application data. Report vulnerabilities privately through the repository's GitHub security channel rather than a public issue.
+
+## License
+
+LocalSettle is licensed under the MIT License. See [LICENSE](LICENSE).
