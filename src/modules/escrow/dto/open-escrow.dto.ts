@@ -8,7 +8,7 @@ import { IsString, IsNumber, IsUUID, Min, IsOptional } from 'class-validator';
  * to sign the returned fund transaction once.
  */
 export class OpenEscrowDto {
-  /** UUID of the iKash order this escrow protects */
+  /** UUID of the LocalSettle order this escrow protects */
   @IsUUID()
   orderId: string;
 

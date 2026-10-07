@@ -1,4 +1,4 @@
-# 🛡️ Guía de Flujo iKash P2P Escrow (Optimizado)
+# 🛡️ Guía de Flujo LocalSettle P2P Escrow (Optimizado)
 
 Esta guía detalla el proceso completo de un Escrow P2P, desde la creación hasta la liberación automática.
 **Orden ID actual:** `cbaf1f95-16c5-40b2-92dc-10a46d76fe98`
@@ -18,7 +18,7 @@ curl -X POST http://localhost:3000/escrows/open \
     \"sellerAddress\": \"GDZMFMC7FHN7PLXNA7Q5YJYKYLXC7ZOMS7BLP4LWLESPCX4IKP3WKUGH\",
     \"buyerAddress\": \"GDVCLTCROXEKHTHST5JY5HEILNN4GDIDBXAJBZNOSGJ36PXMLZI7625W\",
     \"amount\": 10.5,
-    \"title\": \"iKash Test Order - AutoRelease\"
+    \"title\": \"LocalSettle Test Order - AutoRelease\"
   }"
 ```
 

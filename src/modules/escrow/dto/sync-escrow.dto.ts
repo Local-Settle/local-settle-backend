@@ -8,7 +8,7 @@ export enum EscrowAction {
 }
 
 export class SyncEscrowDto {
-  /** iKash escrow record ID */
+  /** LocalSettle escrow record ID */
   @IsUUID()
   escrowId: string;
 

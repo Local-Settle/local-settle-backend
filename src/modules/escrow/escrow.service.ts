@@ -1,7 +1,7 @@
 /**
  * escrow.service.ts
  *
- * Business logic for the iKash P2P escrow flow.
+ * Business logic for the LocalSettle P2P escrow flow.
  *
  * Key facts:
  *
@@ -197,8 +197,8 @@ export class EscrowService {
     const deployPayload: InitializeMultiReleaseEscrowPayload = {
       signer: treasury,
       engagementId: orderId,
-      title: dto.title ?? `iKash P2P Order ${orderId}`,
-      description: `iKash P2P escrow for order ${orderId}`,
+      title: dto.title ?? `LocalSettle P2P Order ${orderId}`,
+      description: `LocalSettle P2P escrow for order ${orderId}`,
       roles: this.buildP2PRoles(dto.sellerAddress, dto.buyerAddress),
       platformFee,
       milestones: [
@@ -307,7 +307,7 @@ export class EscrowService {
       signer: dto.signerAddress,
       engagementId: dto.orderId,
       title: dto.title,
-      description: `iKash P2P escrow for order ${dto.orderId}`,
+      description: `LocalSettle P2P escrow for order ${dto.orderId}`,
       roles: this.buildP2PRoles(dto.sellerAddress, dto.buyerAddress),
       platformFee,
       milestones: [

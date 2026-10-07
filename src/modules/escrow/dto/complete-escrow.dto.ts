@@ -9,11 +9,11 @@ import { IsString, IsUUID, IsOptional } from 'class-validator';
  * Si en el futuro se agrega un endpoint POST /escrows/:id/complete independiente
  * (por ejemplo para flujos no-P2P donde el serviceProvider es externo), usar este DTO.
  *
- * Rol P2P aclarado: en iKash el `serviceProvider` en TW es el BUYER
+ * Rol P2P aclarado: en LocalSettle el `serviceProvider` en TW es el BUYER
  * (quien provee el fiat), NO el seller.
  */
 export class CompleteEscrowDto {
-  /** iKash escrow record ID */
+  /** LocalSettle escrow record ID */
   @IsUUID()
   escrowId: string;
 

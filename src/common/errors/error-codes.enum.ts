@@ -1,5 +1,5 @@
 /**
- * Centralized error codes for all iKash backend errors.
+ * Centralized error codes for all LocalSettle backend errors.
  * These stable uppercase identifiers allow the frontend to branch on
  * `error.error` without parsing human-readable message strings.
  */

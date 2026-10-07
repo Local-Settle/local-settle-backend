@@ -2,7 +2,7 @@
 
 ## 1. Overview and Requirements
 
-The iKash platform requires a robust system to manage multiple payment methods per user to facilitate Peer-to-Peer (P2P) operations. These methods must be auto-managed, allowing users to select from pre-defined providers or register custom ones while maintaining a consistent data structure for the escrow and order matching engine.
+The LocalSettle platform requires a robust system to manage multiple payment methods per user to facilitate Peer-to-Peer (P2P) operations. These methods must be auto-managed, allowing users to select from pre-defined providers or register custom ones while maintaining a consistent data structure for the escrow and order matching engine.
 
 ### 1.1 Classification of Systems
 

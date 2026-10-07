@@ -2,7 +2,7 @@
 
 ## Summary
 
-This PR implements a standardized, structured error response format across all iKash backend
+This PR implements a standardized, structured error response format across all LocalSettle backend
 controllers and services. Every error response now returns a consistent object that the frontend
 can safely depend on, regardless of human-readable message changes.
 

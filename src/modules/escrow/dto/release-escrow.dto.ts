@@ -1,7 +1,7 @@
 import { IsString, IsUUID } from 'class-validator';
 
 export class ReleaseEscrowDto {
-  /** iKash escrow record ID */
+  /** LocalSettle escrow record ID */
   @IsUUID()
   escrowId: string;
 

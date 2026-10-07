@@ -1,8 +1,8 @@
-# Code Review Guidelines — iKash Backend (NestJS)
+# Code Review Guidelines — LocalSettle Backend (NestJS)
 
 ## Overview
 
-The primary objective of these guidelines is to ensure that every Pull Request (PR) submitted to the iKash backend maintains a rigorous standard of security, architectural consistency, and auditability. Because this platform processes decentralized peer-to-peer (P2P) financial transactions and ledger data, the code must not only be performant but also completely deterministic, resilient against common vulnerabilities, and easily traceable during infrastructure audits.
+The primary objective of these guidelines is to ensure that every Pull Request (PR) submitted to the LocalSettle backend maintains a rigorous standard of security, architectural consistency, and auditability. Because this platform processes decentralized peer-to-peer (P2P) financial transactions and ledger data, the code must not only be performant but also completely deterministic, resilient against common vulnerabilities, and easily traceable during infrastructure audits.
 
 This document serves as the core instruction set for the AI agent (`reviewer`) and the engineering team during the code review phase.
 

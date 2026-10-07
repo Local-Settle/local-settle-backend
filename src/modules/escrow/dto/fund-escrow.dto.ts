@@ -1,7 +1,7 @@
 import { IsString, IsNumber, IsUUID, Min } from 'class-validator';
 
 export class FundEscrowDto {
-  /** iKash escrow record ID */
+  /** LocalSettle escrow record ID */
   @IsUUID()
   escrowId: string;
 

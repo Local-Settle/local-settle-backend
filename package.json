@@ -1,7 +1,7 @@
 {
-  "name": "ikash-backend",
+  "name": "localsettle-backend",
   "version": "0.0.1",
-  "description": "",
+  "description": "LocalSettle API for Stellar peer-to-peer trades and wallet settlement.",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
