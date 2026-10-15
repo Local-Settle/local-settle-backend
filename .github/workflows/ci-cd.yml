@@ -37,6 +37,9 @@ jobs:
 
       - run: pnpm run test
 
+      - name: Build application
+        run: pnpm run build
+
   deploy:
     name: Build & Deploy to Cloud Run
     needs: test
