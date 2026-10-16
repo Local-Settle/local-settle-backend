@@ -85,6 +85,8 @@ npx prisma migrate dev
 npm run start:dev
 ```
 
+For production, commit the generated migration directory and run `pnpm exec prisma migrate deploy` as a release step. Keep `DATABASE_URL` pointed at the runtime pool and `DIRECT_URL` at the direct database connection. CI runs `prisma validate` using placeholder URLs and does not connect to a database.
+
 The API listens on port `3001` by default. The frontend should point `NEXT_PUBLIC_API_URL` at `http://localhost:3001`. Never commit real secrets. The existing `IKASH_*` escrow environment variable names are retained for deployment compatibility; see `.env.example` before configuring them.
 
 ## Useful API routes

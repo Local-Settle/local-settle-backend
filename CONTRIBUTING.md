@@ -21,6 +21,13 @@ npm run start:dev
 
 Keep schema changes in Prisma migrations. Update validation, API documentation, and frontend-facing contracts when an endpoint or response changes. Never weaken authorization or expose operator signing secrets.
 
+## Prisma migration workflow
+
+- Use `pnpm exec prisma generate` to refresh the client after changing `schema.prisma`; it does not apply a migration.
+- Use `pnpm exec prisma migrate dev --name <change>` only against a disposable local development database to create and apply migrations.
+- Deploy committed migrations with `pnpm exec prisma migrate deploy` in a release environment. Do not use `migrate dev` in production.
+- Runtime `DATABASE_URL` may use the pooled connection. Set `DIRECT_URL` to the direct PostgreSQL connection for Prisma migration operations. CI validates the schema without connecting to either database.
+
 ## Checks and tests
 
 Add or update regression coverage for behavior changes. Jest unit tests use `*.spec.ts` files; end-to-end tests live under `test/` and use the configured e2e suite.
