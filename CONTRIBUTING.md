@@ -10,13 +10,13 @@ Thanks for helping improve LocalSettle. This repository contains the NestJS API 
 
 ## Set up and work locally
 
-Use Node.js 20+ and npm. Copy `.env.example` to `.env`, configure a local PostgreSQL database and required environment values, then run:
+Use Node.js 22 (see `.nvmrc`) and pnpm 11.13.0, as declared in `package.json`. Copy `.env.example` to `.env`, configure a local PostgreSQL database and required environment values, then run:
 
 ```bash
-npm install
+pnpm install --frozen-lockfile
 npx prisma generate
 npx prisma migrate dev
-npm run start:dev
+pnpm run start:dev
 ```
 
 Keep schema changes in Prisma migrations. Update validation, API documentation, and frontend-facing contracts when an endpoint or response changes. Never weaken authorization or expose operator signing secrets.
@@ -26,12 +26,12 @@ Keep schema changes in Prisma migrations. Update validation, API documentation, 
 Add or update regression coverage for behavior changes. Jest unit tests use `*.spec.ts` files; end-to-end tests live under `test/` and use the configured e2e suite.
 
 ```bash
-npm test
-npm run test:e2e
-npm run build
+pnpm test
+pnpm run test:e2e
+pnpm run build
 ```
 
-Run the relevant checks before opening a pull request and report any checks you could not run. Use `npm run format` for Prettier formatting when needed.
+Run the relevant checks before opening a pull request and report any checks you could not run. Use `pnpm run format` for Prettier formatting when needed.
 
 ## Commits and pull requests
 

@@ -120,5 +120,9 @@
       "browserslist": "4.28.1",
       "electron-to-chromium": "1.5.313"
     }
+  },
+  "packageManager": "pnpm@11.13.0",
+  "engines": {
+    "node": ">=22 <23"
   }
 }
