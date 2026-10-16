@@ -76,13 +76,13 @@ Protocol references: [Stellar developer documentation](https://developers.stella
 
 ## Run locally
 
-Requirements: Node.js 20+, npm, and PostgreSQL. Copy `.env.example` to `.env`; configure `DATABASE_URL`, `DIRECT_URL`, and a local `JWT_SECRET`. For Stellar features, configure `STELLAR_HORIZON_URL`, `STELLAR_RPC_URL`, `STELLAR_NETWORK`, and the relevant issuer and Trustless Work values. Use test credentials and Testnet accounts only.
+Requirements: Node.js 22 (see `.nvmrc`), pnpm 11.13.0 (pinned in `package.json`), and PostgreSQL. Copy `.env.example` to `.env`; configure `DATABASE_URL`, `DIRECT_URL`, and a local `JWT_SECRET`. For Stellar features, configure `STELLAR_HORIZON_URL`, `STELLAR_RPC_URL`, `STELLAR_NETWORK`, and the relevant issuer and Trustless Work values. Use test credentials and Testnet accounts only.
 
 ```bash
-npm install
+pnpm install --frozen-lockfile
 npx prisma generate
 npx prisma migrate dev
-npm run start:dev
+pnpm run start:dev
 ```
 
 The API listens on port `3001` by default. The frontend should point `NEXT_PUBLIC_API_URL` at `http://localhost:3001`. Never commit real secrets. The existing `IKASH_*` escrow environment variable names are retained for deployment compatibility; see `.env.example` before configuring them.
@@ -102,11 +102,11 @@ Routes have endpoint-specific validation and guards. Check the controller and DT
 ## Development checks
 
 ```bash
-npm run build       # Compile the NestJS application
-npm test            # Run Jest unit tests
-npm run test:e2e    # Run API and gateway end-to-end tests
-npm run test:cov    # Collect Jest coverage
-npm run format      # Format TypeScript source and tests
+pnpm run build       # Compile the NestJS application
+pnpm test            # Run Jest unit tests
+pnpm run test:e2e    # Run API and gateway end-to-end tests
+pnpm run test:cov    # Collect Jest coverage
+pnpm run format      # Format TypeScript source and tests
 ```
 
 Unit tests use Jest `*.spec.ts` files near the implementation. Add regression coverage for authentication, transaction preparation, escrow transitions, access control, and event processing when changing those areas.
