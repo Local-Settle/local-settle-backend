@@ -33,6 +33,12 @@ jobs:
 
       - run: pnpm install --no-frozen-lockfile
 
+      - name: Validate Prisma schema without a database
+        run: pnpm exec prisma validate
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/local_settle_ci
+          DIRECT_URL: postgresql://user:password@localhost:5432/local_settle_ci
+
       - run: pnpm run lint
 
       - run: pnpm run test
