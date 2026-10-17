@@ -17,11 +17,12 @@ export class StatsService {
       dailyCounts,
     ] = await Promise.all([
       this.prisma.waitlist.count(),
-      this.prisma.appUser.count(),
+      this.prisma.appUser.count({ where: { deletedAt: null } }),
       this.prisma.escrowOnChain.count(),
       this.prisma.escrowOnChain.count({ where: { escrowStatus: 'released' } }),
       this.prisma.order.count({ where: { orderStatus: 'released' } }),
       this.prisma.appUser.findFirst({
+        where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
         select: { createdAt: true },
       }),

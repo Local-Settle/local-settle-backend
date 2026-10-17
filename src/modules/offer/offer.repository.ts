@@ -53,8 +53,8 @@ export class OfferRepository extends BaseRepository {
   }
 
   findById(offerId: string): Promise<OfferWithRelations | null> {
-    return this.prisma.offer.findUnique({
-      where: { offerId },
+    return this.prisma.offer.findFirst({
+      where: { offerId, creator: { deletedAt: null } },
       include: OFFER_DETAIL_INCLUDE,
     });
   }
@@ -65,7 +65,7 @@ export class OfferRepository extends BaseRepository {
     take = 20,
   ): Promise<OfferWithRelations[]> {
     return this.prisma.offer.findMany({
-      where,
+      where: { ...where, creator: { deletedAt: null } },
       skip,
       take,
       orderBy: { offerId: 'desc' },

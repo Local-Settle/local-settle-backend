@@ -22,7 +22,7 @@ export class KycVerifiedGuard implements CanActivate {
     }
 
     const user = await this.prisma.appUser.findUnique({
-      where: { publicKey: userPayload.publicKey },
+      where: { publicKey: userPayload.publicKey, deletedAt: null },
       select: { kycStatus: true },
     });
 
