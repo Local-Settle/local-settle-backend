@@ -146,9 +146,16 @@ describe('AuthController', () => {
         expiresAt: '2026-08-25T12:00:00.000Z',
       });
 
-      const result = await controller.createChallenge(dto);
+      const mockReq = {
+        ip: '127.0.0.1',
+        headers: { 'user-agent': 'unit-test' },
+      } as unknown as Request;
+      const result = await controller.createChallenge(dto, mockReq);
 
-      expect(createChallengeMock).toHaveBeenCalledWith(dto);
+      expect(createChallengeMock).toHaveBeenCalledWith(dto, {
+        ipAddress: '127.0.0.1',
+        userAgent: 'unit-test',
+      });
       expect(result).toEqual({
         challenge: 'challenge-string',
         expiresAt: '2026-08-25T12:00:00.000Z',

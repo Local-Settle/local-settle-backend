@@ -34,6 +34,10 @@ const BASE64_REGEX =
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly failedSignatureWindows = new Map<
+    string,
+    { count: number; windowStart: number }
+  >();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -49,6 +53,7 @@ export class AuthService {
    */
   async createChallenge(
     dto: CreateAuthChallengeDto,
+    ctx: RequestContext = {},
   ): Promise<AuthChallengeResponse> {
     const { publicKey } = dto;
     this.assertValidPublicKey(publicKey);
@@ -68,6 +73,17 @@ export class AuthService {
       update: { challenge, expiresAt, usedAt: null, createdAt: new Date() },
     });
 
+    await this.auditLogService.create({
+      action: AuditAction.AUTH_CHALLENGE_CREATED,
+      resourceType: 'AuthChallenge',
+      resourceId: createHash('sha256').update(publicKey).digest('hex'),
+      result: AuditResult.SUCCESS,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+      correlationId: ctx.correlationId,
+      metadata: { operation: 'challenge', scope: 'wallet_and_ip' },
+    });
+
     return { challenge, expiresAt: expiresAt.toISOString() };
   }
 
@@ -82,6 +98,7 @@ export class AuthService {
   ): Promise<{ access_token: string; user: AppUser }> {
     const { publicKey, challenge, signature } = dto;
     this.assertValidPublicKey(publicKey);
+    this.assertFailedSignatureLimit(publicKey, ctx.ipAddress);
 
     const stored = await this.prisma.authChallenge.findUnique({
       where: { publicKey },
@@ -104,7 +121,14 @@ export class AuthService {
       );
     }
 
-    const signatureBytes = this.decodeSignature(signature);
+    let signatureBytes: Buffer;
+    try {
+      signatureBytes = this.decodeSignature(signature);
+    } catch (error) {
+      this.recordFailedSignature(publicKey, ctx.ipAddress);
+      await this.recordLoginFailure(publicKey, ctx, 'malformed_signature');
+      throw error;
+    }
 
     let isValidSignature = false;
     try {
@@ -129,6 +153,7 @@ export class AuthService {
     }
 
     if (!isValidSignature) {
+      this.recordFailedSignature(publicKey, ctx.ipAddress);
       await this.recordLoginFailure(publicKey, ctx, 'invalid_signature');
       throw new AppException(
         ErrorCode.INVALID_SIGNATURE,
@@ -211,6 +236,72 @@ export class AuthService {
       correlationId: ctx.correlationId,
       metadata: { reason },
     });
+  }
+
+  private assertFailedSignatureLimit(publicKey: string, ipAddress?: string) {
+    const keys = [
+      `wallet:${publicKey}`,
+      ...(ipAddress ? [`ip:${ipAddress}`] : []),
+    ];
+    const now = Date.now();
+    const ttl = this.getPositiveInteger(
+      'AUTH_FAILED_SIGNATURE_RATE_LIMIT_TTL_MS',
+      60_000,
+    );
+    const limit = this.getPositiveInteger(
+      'AUTH_FAILED_SIGNATURE_RATE_LIMIT_MAX',
+      5,
+    );
+    const exceeded = keys.find((key) => {
+      const window = this.failedSignatureWindows.get(key);
+      if (window && now - window.windowStart >= ttl) {
+        this.failedSignatureWindows.delete(key);
+        return false;
+      }
+      return Boolean(window && window.count >= limit);
+    });
+    if (exceeded) {
+      void this.auditLogService.create({
+        action: AuditAction.AUTH_RATE_LIMITED,
+        resourceType: 'AuthLogin',
+        resourceId: createHash('sha256').update(publicKey).digest('hex'),
+        result: AuditResult.FAILURE,
+        ipAddress,
+        metadata: {
+          operation: 'failed_signature',
+          scope: exceeded.startsWith('ip:') ? 'ip' : 'wallet',
+        },
+      });
+      throw new AppException(
+        ErrorCode.TOO_MANY_REQUESTS,
+        'Too many failed signatures for this wallet and IP. Please retry after the rate-limit window.',
+      );
+    }
+  }
+
+  private recordFailedSignature(publicKey: string, ipAddress?: string): void {
+    const keys = [
+      `wallet:${publicKey}`,
+      ...(ipAddress ? [`ip:${ipAddress}`] : []),
+    ];
+    const now = Date.now();
+    const ttl = this.getPositiveInteger(
+      'AUTH_FAILED_SIGNATURE_RATE_LIMIT_TTL_MS',
+      60_000,
+    );
+    for (const key of keys) {
+      const current = this.failedSignatureWindows.get(key);
+      if (!current || now - current.windowStart >= ttl) {
+        this.failedSignatureWindows.set(key, { count: 1, windowStart: now });
+      } else {
+        current.count += 1;
+      }
+    }
+  }
+
+  private getPositiveInteger(name: string, fallback: number): number {
+    const parsed = Number(process.env[name]);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
   }
 
   private assertValidPublicKey(publicKey: string): void {

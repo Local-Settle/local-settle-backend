@@ -11,6 +11,7 @@ import type { Request, Response } from 'express';
 import * as crypto from 'crypto';
 import { Throttle } from '@nestjs/throttler';
 import { rateLimitConfig } from '../../config/rate-limit.config';
+import { rateLimitConfig } from '../../config/rate-limit.config';
 import { AuthService } from './auth.service';
 import { AuthRateLimitGuard } from './auth-rate-limit.guard';
 import { CreateAuthChallengeDto } from './dto/create-auth-challenge.dto';
@@ -55,8 +56,11 @@ export class AuthController {
    */
   @Post('challenge')
   @UseGuards(AuthRateLimitGuard)
-  createChallenge(@Body() dto: CreateAuthChallengeDto) {
-    return this.authService.createChallenge(dto);
+  createChallenge(@Body() dto: CreateAuthChallengeDto, @Req() req: Request) {
+    return this.authService.createChallenge(dto, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   /**
@@ -64,9 +68,8 @@ export class AuthController {
    * after the signature proves ownership of the wallet. Passes request
    * context (IP, user agent) through for audit logging.
    */
-  @Throttle({ default: rateLimitConfig.auth })
   @Post('login')
-  @UseGuards(AuthRateLimitGuard)
+  @Throttle({ default: rateLimitConfig.auth })
   login(@Body() dto: LoginDto, @Req() req: Request) {
     const ctx = {
       ipAddress: req.ip,

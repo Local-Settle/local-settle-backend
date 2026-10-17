@@ -1,6 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import { AppException, ErrorCode } from '../../common/errors';
+import { createHash } from 'crypto';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
 
 interface RateLimitWindow {
   count: number;
@@ -20,25 +23,60 @@ export class AuthRateLimitGuard implements CanActivate {
 
   private readonly windows = new Map<string, RateLimitWindow>();
 
-  canActivate(context: ExecutionContext): boolean {
+  constructor(private readonly auditLogService: AuditLogService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const key = `${request.path}:${request.ip ?? 'unknown'}`;
+    const publicKey = (request.body as { publicKey?: unknown } | undefined)
+      ?.publicKey;
+    const wallet = typeof publicKey === 'string' ? publicKey : undefined;
+    const ipAddress = request.ip ?? 'unknown';
+    const keys = [
+      `${request.path}:ip:${ipAddress}`,
+      ...(wallet ? [`${request.path}:wallet:${wallet}`] : []),
+    ];
+    const windowMs = this.getPositiveInteger(
+      'AUTH_CHALLENGE_RATE_LIMIT_TTL_MS',
+      60_000,
+    );
+    const maxAttempts = this.getPositiveInteger(
+      'AUTH_CHALLENGE_RATE_LIMIT_MAX',
+      10,
+    );
 
     const now = Date.now();
-    const window = this.windows.get(key);
-
-    if (!window || now - window.windowStart >= AuthRateLimitGuard.WINDOW_MS) {
-      this.pruneExpired(now);
-      this.windows.set(key, { count: 1, windowStart: now });
-      return true;
-    }
-
-    window.count += 1;
-    if (window.count > AuthRateLimitGuard.MAX_ATTEMPTS) {
+    this.pruneExpired(now, windowMs);
+    const overLimitScope = keys.find((key) => {
+      const window = this.windows.get(key);
+      return Boolean(window && window.count >= maxAttempts);
+    });
+    if (overLimitScope) {
+      await this.auditLogService.create({
+        action: AuditAction.AUTH_RATE_LIMITED,
+        resourceType: 'AuthChallenge',
+        resourceId:
+          !wallet
+            ? undefined
+            : createHash('sha256').update(wallet).digest('hex'),
+        result: AuditResult.FAILURE,
+        ipAddress,
+        metadata: {
+          operation: 'challenge',
+          scope: overLimitScope.includes(':ip:') ? 'ip' : 'wallet',
+        },
+      });
       throw new AppException(
         ErrorCode.TOO_MANY_REQUESTS,
-        'Too many authentication attempts. Please try again later.',
+        'Too many challenge requests for this wallet and IP. Please retry after the rate-limit window.',
       );
+    }
+    for (const key of keys) {
+      const window = this.windows.get(key);
+      if (!window || now - window.windowStart >= windowMs) {
+        this.windows.set(key, { count: 1, windowStart: now });
+      } else {
+        window.count += 1;
+      }
     }
     return true;
   }
@@ -47,11 +85,16 @@ export class AuthRateLimitGuard implements CanActivate {
     this.windows.clear();
   }
 
-  private pruneExpired(now: number): void {
+  private pruneExpired(now: number, windowMs: number): void {
     for (const [key, window] of this.windows) {
-      if (now - window.windowStart >= AuthRateLimitGuard.WINDOW_MS) {
+      if (now - window.windowStart >= windowMs) {
         this.windows.delete(key);
       }
     }
+  }
+
+  private getPositiveInteger(name: string, fallback: number): number {
+    const parsed = Number(process.env[name]);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
   }
 }
