@@ -20,6 +20,7 @@ import {
   ChatEvent,
 } from './chat-message.events';
 import { OrderRoomDto, SendMessageDto } from './dto/send-message.dto';
+import { validateChatMessageContent } from './chat-message-content';
 
 interface ChatJwtPayload {
   sub?: string;
@@ -172,24 +173,25 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
       );
     }
 
-    const content =
-      typeof body?.content === 'string' ? body.content.trim() : '';
-    if (!content) {
+    const validation = validateChatMessageContent(body?.content);
+    if (!validation.valid) {
+      const code =
+        validation.reason === 'empty' || validation.reason === 'too_long'
+          ? ChatErrorCode.EMPTY_MESSAGE
+          : ChatErrorCode.INVALID_MESSAGE_CONTENT;
+      const message = validation.reason === 'too_long'
+        ? 'Message exceeds the 4000 character limit.'
+        : validation.reason === 'empty'
+          ? 'Message cannot be empty.'
+          : 'Message contains invalid content.';
       return this.fail(
         client,
-        ChatErrorCode.EMPTY_MESSAGE,
-        'Message cannot be empty.',
+        code,
+        message,
         orderId,
       );
     }
-    if (content.length > 4000) {
-      return this.fail(
-        client,
-        ChatErrorCode.EMPTY_MESSAGE,
-        'Message is too long.',
-        orderId,
-      );
-    }
+    const { content } = validation;
 
     const room = this.roomFor(orderId);
     if (!client.rooms.has(room)) {
