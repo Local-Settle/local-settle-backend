@@ -83,6 +83,7 @@ model EscrowOnChain {
   escrowStatus  escrow_status @default(pending) @map("escrow_status")
   sellerAddress String?       @map("seller_address")
   evidenceUrl   String?       @map("evidence_url")
+  evidenceUploadedAt DateTime? @map("evidence_uploaded_at") @db.Timestamptz(6)
   order         Order         @relation(fields: [orderId], references: [orderId], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("escrowonchain")

@@ -60,6 +60,15 @@ export class GcsFileStorageService
     }
   }
 
+  async deleteFile(storedUrl: string): Promise<void> {
+    const prefix = `${this.publicUrlBase}/`;
+    if (!storedUrl.startsWith(prefix)) {
+      throw new Error('Stored evidence URL is outside the configured bucket');
+    }
+    const key = decodeURIComponent(storedUrl.slice(prefix.length));
+    await this.bucket.file(key).delete({ ignoreNotFound: true });
+  }
+
   async uploadFile(file: UploadFileInput): Promise<StoredFile> {
     const key =
       file.key ??
@@ -86,4 +95,5 @@ export class GcsFileStorageService
       url: `${this.publicUrlBase}/${key}`,
     };
   }
+
 }
