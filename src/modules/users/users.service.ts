@@ -17,6 +17,7 @@ import { PaymentMethodValidatorService } from '../payment-methods/payment-method
 import { USER_PUBLIC_SELECT, PublicUser } from '../../common/prisma-selects';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
+import { validatePaymentProviderMetadata } from '../payment-providers/payment-provider-metadata.validator';
 
 export interface AliasAvailability {
   available: boolean;
@@ -105,6 +106,8 @@ export class UsersService {
           'Payment provider not found',
         );
       }
+
+      validatePaymentProviderMetadata(provider.type, provider.metadata);
 
       this.paymentMethodValidator.validate(
         {

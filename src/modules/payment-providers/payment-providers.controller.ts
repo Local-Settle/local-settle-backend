@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { validatePaymentProviderMetadata } from './payment-provider-metadata.validator';
 
 @Controller('payment-providers')
 export class PaymentProvidersController {
@@ -7,9 +8,16 @@ export class PaymentProvidersController {
 
   @Get()
   async findAll() {
-    return this.prisma.payment_provider.findMany({
+    const providers = await this.prisma.payment_provider.findMany({
       where: { is_active: true },
       orderBy: { name: 'asc' },
     });
+    return providers.map((provider) => ({
+      ...provider,
+      metadataSchemaVersion: validatePaymentProviderMetadata(
+        provider.type,
+        provider.metadata,
+      ),
+    }));
   }
 }

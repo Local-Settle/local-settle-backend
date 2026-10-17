@@ -9,6 +9,7 @@ import { PaymentMethod } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
+import { validatePaymentProviderMetadata } from '../payment-providers/payment-provider-metadata.validator';
 
 @Injectable()
 export class PaymentMethodsService {
@@ -30,6 +31,8 @@ export class PaymentMethodsService {
         'Payment provider not found',
       );
     }
+
+    validatePaymentProviderMetadata(provider.type, provider.metadata);
 
     this.validator.validate(
       {
@@ -104,6 +107,8 @@ export class PaymentMethodsService {
         'Payment provider not found',
       );
     }
+
+    validatePaymentProviderMetadata(provider.type, provider.metadata);
 
     this.validator.validate(
       {

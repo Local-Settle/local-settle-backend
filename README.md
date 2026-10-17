@@ -99,6 +99,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Active payment providers are checked against provider-type metadata schema version 1 before being returned or used to create payment methods. The provider response includes `metadataSchemaVersion`; malformed UI requirements fail with a validation error so they do not reach trade screens.
+
 ## Development checks
 
 ```bash
