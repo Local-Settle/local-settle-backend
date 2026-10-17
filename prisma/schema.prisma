@@ -47,6 +47,7 @@ model Offer {
   maxAmount       Decimal         @map("max_amount") @db.Decimal(20, 7)
   status          offer_status    @default(active)
   executed        Boolean         @default(false)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   creator         AppUser         @relation("UserOffers", fields: [creatorId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
   orders          Order[]
   payment_methods PaymentMethod[] @relation("OfferPaymentMethods")

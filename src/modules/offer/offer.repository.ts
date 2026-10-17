@@ -63,12 +63,14 @@ export class OfferRepository extends BaseRepository {
     where: Record<string, unknown>,
     skip = 0,
     take = 20,
+    sortBy: 'price' | 'createdAt' | 'offerId' = 'offerId',
+    sortOrder: 'asc' | 'desc' = 'desc',
   ): Promise<OfferWithRelations[]> {
     return this.prisma.offer.findMany({
       where,
       skip,
       take,
-      orderBy: { offerId: 'desc' },
+      orderBy: [{ [sortBy]: sortOrder }, { offerId: 'desc' }],
       include: OFFER_DETAIL_INCLUDE,
     });
   }
