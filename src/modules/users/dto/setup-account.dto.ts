@@ -4,7 +4,10 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  IsIn,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { SUPPORTED_CURRENCY_CODES } from '../../../lib/currency-metadata';
 
 export class SetupAccountDto {
   // Stage 1
@@ -29,6 +32,12 @@ export class SetupAccountDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsIn(SUPPORTED_CURRENCY_CODES, {
+    message: 'preferredCurrency must be a supported ISO 4217 currency code',
+  })
   preferredCurrency?: string;
 
   // Stage 3 (Legacy)

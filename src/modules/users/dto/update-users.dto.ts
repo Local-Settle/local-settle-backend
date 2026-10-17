@@ -5,8 +5,11 @@ import {
   IsString,
   MaxLength,
   Matches,
+  IsIn,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ALIAS_REGEX } from '../../../lib/constants/regex';
+import { SUPPORTED_CURRENCY_CODES } from '../../../lib/currency-metadata';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -33,6 +36,12 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsIn(SUPPORTED_CURRENCY_CODES, {
+    message: 'preferredCurrency must be a supported ISO 4217 currency code',
+  })
   preferredCurrency?: string;
 
   @IsOptional()

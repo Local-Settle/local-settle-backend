@@ -15,6 +15,7 @@ The implementation is split into two layers:
 | :------ | :---------------------- | :----------- | :-------------------------------------------------------- |
 | `GET`   | `/users/validate-alias` | JWT required | Validates alias format and checks availability            |
 | `PATCH` | `/users/:id`            | JWT required | Updates user profile; enforces alias uniqueness on change |
+| `GET`   | `/users/currency-metadata/:currency?locale=en-US` | Public | Returns canonical currency code, locale, and minor-unit precision |
 
 ## 3. `ValidateAliasDto` — Field Constraints
 
@@ -101,3 +102,16 @@ PATCH /users/:id  { alias: "new_alias" }
 | Alias already registered to a different user | `409 Conflict`  | `"Alias is already taken"` |
 
 > **Note:** A user submitting their own current alias (e.g., saving a settings form without changing it) is **not** treated as a conflict. Step 2 short-circuits the check to avoid a false positive.
+
+## 6. Preferred Currency Metadata
+
+`preferredCurrency` in both `PATCH /users/:id` and `POST /users/:id/setup`
+accepts supported ISO 4217 currency codes (case-insensitive; normalized to
+uppercase). Unsupported codes return `400 VALIDATION_ERROR`.
+
+Clients can request display metadata with
+`GET /users/currency-metadata/:currency?locale=en-US`. The response includes
+the canonical locale and the currency's deterministic `minorUnit` precision
+(for example, USD has 2 digits, JPY has 0, and KWD has 3). An unsupported
+currency or invalid locale returns HTTP 400. The existing `preferredCurrency`
+database column remains a string, so this change requires no migration.

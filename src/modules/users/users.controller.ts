@@ -27,6 +27,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import type { UploadFileInput } from '../file-storage/file-storage.service';
+import { getCurrencyMetadata } from '../../lib/currency-metadata';
 
 @Controller('users')
 export class UsersController {
@@ -61,6 +62,20 @@ export class UsersController {
   @Get('validate-alias')
   checkAlias(@Query() query: ValidateAliasDto) {
     return this.service.isAliasAvailable(query.alias);
+  }
+
+  @Get('currency-metadata/:currency')
+  getCurrencyMetadata(
+    @Param('currency') currency: string,
+    @Query('locale') locale = 'en-US',
+  ) {
+    const metadata = getCurrencyMetadata(currency, locale);
+    if (!metadata) {
+      throw new BadRequestException(
+        'Currency must be a supported ISO 4217 code and locale must be valid',
+      );
+    }
+    return { success: true, data: metadata };
   }
 
   @UseGuards(JwtAuthGuard)
