@@ -7,6 +7,10 @@ import {
 
 @Injectable()
 export class MockFileStorageService extends FileStorageService {
+  async deleteFile(_storedUrl: string): Promise<void> {
+    // The mock provider does not persist uploaded objects.
+  }
+
   uploadFile(file: UploadFileInput): Promise<StoredFile> {
     const key =
       file.key ??
@@ -25,4 +29,5 @@ export class MockFileStorageService extends FileStorageService {
       url: `https://mock-storage.ikash.local/${key}`,
     });
   }
+
 }

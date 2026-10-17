@@ -19,6 +19,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PaginationDto } from '../../common/pagination.dto';
 import { CreateEscrowDto } from './dto/create-escrow.dto';
 import { UpdateEscrowDto } from './dto/update-escrow.dto';
@@ -439,9 +440,44 @@ export class EscrowService {
       key,
     });
 
-    await this.repo.update(id, { evidenceUrl: result.url });
+    await this.repo.update(id, {
+      evidenceUrl: result.url,
+      evidenceUploadedAt: new Date(),
+    });
 
     return { url: result.url };
+  }
+
+  /** Purge terminal-order evidence one year after its upload by default. */
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  async purgeExpiredEvidence() {
+    const retentionDays =
+      Number(this.config.get('EVIDENCE_RETENTION_DAYS')) || 365;
+    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+    const expired = await this.repo.findExpiredEvidence(cutoff);
+
+    for (const evidence of expired) {
+      if (!evidence.evidenceUrl) continue;
+      try {
+        await this.fileStorage.deleteFile(evidence.evidenceUrl);
+        await this.repo.update(evidence.escrowId, {
+          evidenceUrl: null,
+          evidenceUploadedAt: null,
+        });
+        await this.auditLogService.create({
+          action: AuditAction.EVIDENCE_DELETED,
+          resourceType: 'EscrowEvidence',
+          resourceId: evidence.escrowId,
+          result: AuditResult.SUCCESS,
+          metadata: { reason: 'retention_expired', retentionDays },
+        });
+      } catch {
+        // Keep the database reference so a later scheduled run can retry.
+        this.logger.warn(
+          `Evidence retention cleanup failed for escrow ${evidence.escrowId}`,
+        );
+      }
+    }
   }
 
   async release(dto: ReleaseEscrowDto) {
