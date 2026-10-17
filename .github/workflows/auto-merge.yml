@@ -1,0 +1,107 @@
+name: Auto-merge eligible pull requests
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review, edited]
+  pull_request_review:
+    types: [submitted, dismissed]
+  workflow_run:
+    workflows: [Backend CI/CD]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  queue-merge:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'pull_request')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Queue eligible pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || '' }}
+          CI_WORKFLOW: ci-cd.yml
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            if [[ -z "$EVENT_HEAD_SHA" ]]; then
+              echo "Workflow run has no head SHA; nothing to do."
+              exit 0
+            fi
+            PR_NUMBERS="$(gh api "repos/$GH_REPO/commits/$EVENT_HEAD_SHA/pulls" \
+              --jq '.[] | select(.state == "open" and .base.ref == "main") | .number')"
+          else
+            PR_NUMBERS="$EVENT_PR_NUMBER"
+          fi
+
+          if [[ -z "$PR_NUMBERS" ]]; then
+            echo "No open pull request targeting main for this event."
+            exit 0
+          fi
+
+          WORKFLOW_ID="$(gh api "repos/$GH_REPO/actions/workflows/$CI_WORKFLOW" --jq .id)"
+
+          while IFS= read -r PR_NUMBER; do
+            [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || continue
+
+            PR="$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER")"
+            STATE="$(jq -r .state <<<"$PR")"
+            BASE="$(jq -r .base.ref <<<"$PR")"
+            DRAFT="$(jq -r .draft <<<"$PR")"
+            HEAD_SHA="$(jq -r .head.sha <<<"$PR")"
+            PR_URL="$(jq -r .html_url <<<"$PR")"
+
+            if [[ "$STATE" != "open" || "$BASE" != "main" || "$DRAFT" == "true" ]]; then
+              echo "Skipping PR #$PR_NUMBER: it is closed, targets another branch, or is a draft."
+              continue
+            fi
+
+            REVIEW_DECISION="$(gh pr view "$PR_NUMBER" --repo "$GH_REPO" --json reviewDecision --jq .reviewDecision)"
+            if [[ "$REVIEW_DECISION" != "APPROVED" ]]; then
+              echo "Skipping PR #$PR_NUMBER: GitHub has no current approving review."
+              continue
+            fi
+
+            if [[ -n "$EVENT_HEAD_SHA" && "$HEAD_SHA" != "$EVENT_HEAD_SHA" ]]; then
+              echo "Skipping PR #$PR_NUMBER: CI completed for a stale head commit."
+              continue
+            fi
+
+            if [[ "$EVENT_NAME" != "workflow_run" ]]; then
+              RUNS="$(gh api "repos/$GH_REPO/actions/workflows/$WORKFLOW_ID/runs?head_sha=$HEAD_SHA&event=pull_request&per_page=100")"
+              CI_PASSED="$(jq -r --arg sha "$HEAD_SHA" \
+                'any(.workflow_runs[]; .head_sha == $sha and .status == "completed" and .conclusion == "success")' \
+                <<<"$RUNS")"
+              if [[ "$CI_PASSED" != "true" ]]; then
+                echo "Skipping PR #$PR_NUMBER: CI has not succeeded for its current head commit."
+                continue
+              fi
+            fi
+
+            MERGEABLE=""
+            for attempt in 1 2 3 4 5 6; do
+              PR="$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER")"
+              MERGEABLE="$(jq -r .mergeable <<<"$PR")"
+              [[ "$MERGEABLE" != "null" ]] && break
+              sleep 5
+            done
+
+            if [[ "$MERGEABLE" != "true" ]]; then
+              echo "Skipping PR #$PR_NUMBER: GitHub reports conflicts or mergeability is unknown."
+              continue
+            fi
+
+            gh pr merge "$PR_URL" --repo "$GH_REPO" --auto --squash
+          done <<<"$PR_NUMBERS"
