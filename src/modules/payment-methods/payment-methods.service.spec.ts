@@ -48,6 +48,16 @@ describe('PaymentMethodsService', () => {
     name: 'PayPal',
     type: 'PLATFORM',
     country_code: '',
+    metadata: {
+      ui_requirements: [
+        {
+          db_field: 'account_identifier',
+          label: 'PayPal email',
+          type: 'email',
+          required: true,
+        },
+      ],
+    },
   };
 
   beforeEach(async () => {
