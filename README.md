@@ -99,6 +99,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Order creation records `ORDER_CREATED` in the same database transaction as the order, escrow record, and offer execution update. Audit storage errors therefore abort the complete database transaction instead of leaving a committed order without its audit record.
+
 ## Development checks
 
 ```bash

@@ -7,6 +7,7 @@ import {
   PAYMENT_METHOD_SELECT,
 } from '../../common/prisma-selects';
 import { ORDER_STATUS } from './order.constants';
+import { CreateAuditLogInput } from '../audit-log/interfaces/create-audit-log.interface';
 
 export const ORDER_DETAIL_INCLUDE = {
   offer: {
@@ -41,6 +42,7 @@ export class OrderRepository extends BaseRepository {
     fiatAmount: string | number;
     orderStatus?: string;
     expiresAt?: Date | string | null;
+    auditLog?: CreateAuditLogInput;
     // Escrow data to persist alongside the order
     escrow?: {
       contractId: string;
@@ -84,6 +86,26 @@ export class OrderRepository extends BaseRepository {
         where: { offerId: data.offerId },
         data: { executed: true },
       });
+
+      // Keep the audit record in the same transaction as the business change.
+      // If either write fails, neither the order nor its audit entry commits.
+      if (data.auditLog) {
+        await tx.auditLog.create({
+          data: {
+            userId: data.auditLog.userId,
+            action: data.auditLog.action,
+            resourceType: data.auditLog.resourceType,
+            resourceId: data.auditLog.resourceId,
+            result: data.auditLog.result,
+            ipAddress: data.auditLog.ipAddress,
+            userAgent: data.auditLog.userAgent,
+            correlationId: data.auditLog.correlationId,
+            metadata: data.auditLog.metadata as
+              | Prisma.InputJsonValue
+              | undefined,
+          },
+        });
+      }
       return { ...order, escrowId };
     });
 

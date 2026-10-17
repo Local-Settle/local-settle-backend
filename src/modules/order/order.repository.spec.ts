@@ -1,5 +1,6 @@
 import { OrderRepository, ORDER_DETAIL_INCLUDE } from './order.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
 import {
   ORDER_PARTY_SELECT,
   PAYMENT_METHOD_SELECT,
@@ -15,6 +16,66 @@ describe('OrderRepository', () => {
   };
 
   const repo = new OrderRepository({ order } as unknown as PrismaService);
+
+  describe('atomic order audit', () => {
+    it('writes order and audit through the same transaction callback', async () => {
+      const tx = {
+        order: { create: jest.fn().mockResolvedValue({ orderId: 'order-1' }) },
+        offer: {
+          findUnique: jest.fn().mockResolvedValue({ price: '2.00' }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        escrowOnChain: { create: jest.fn() },
+        auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+      };
+      const prisma = {
+        $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+          callback(tx),
+        ),
+      };
+      const transactionalRepo = new OrderRepository(
+        prisma as unknown as PrismaService,
+      );
+
+      const input = {
+        offerId: 'offer-1',
+        buyerId: 'buyer-1',
+        sellerId: 'seller-1',
+        assetAmount: '1',
+        fiatAmount: '2.00',
+        escrow: {
+          contractId: 'contract-1',
+          sellerAddress: 'seller-address',
+          buyerAddress: 'buyer-address',
+          amount: '1',
+        },
+        auditLog: {
+          userId: 'buyer-1',
+          action: AuditAction.ORDER_CREATED,
+          resourceType: 'Order',
+          resourceId: 'order-1',
+          result: AuditResult.SUCCESS,
+        },
+      };
+      await transactionalRepo.create(input);
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(tx.order.create).toHaveBeenCalledTimes(1);
+      expect(tx.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: AuditAction.ORDER_CREATED,
+          resourceId: 'order-1',
+        }),
+      });
+
+      tx.auditLog.create.mockRejectedValueOnce(
+        new Error('audit database unavailable'),
+      );
+      await expect(transactionalRepo.create(input)).rejects.toThrow(
+        'audit database unavailable',
+      );
+    });
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
