@@ -18,7 +18,9 @@ export class EscrowRepository extends BaseRepository {
       where: {
         evidenceUrl: { not: null },
         evidenceUploadedAt: { lte: before },
-        order: { orderStatus: { in: ['released', 'cancelled', 'expired'] } },
+        order: {
+          is: { orderStatus: { in: ['released', 'cancelled', 'expired'] } },
+        },
       },
       select: { escrowId: true, evidenceUrl: true },
     });
