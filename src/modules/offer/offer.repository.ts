@@ -3,6 +3,7 @@ import { BaseRepository } from '../../common/base.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PAYMENT_METHOD_SELECT } from '../../common/prisma-selects';
+import { AppException, ErrorCode } from '../../common/errors';
 
 export const OFFER_DETAIL_INCLUDE = {
   payment_methods: { select: PAYMENT_METHOD_SELECT },
@@ -57,6 +58,43 @@ export class OfferRepository extends BaseRepository {
       where: { offerId },
       include: OFFER_DETAIL_INCLUDE,
     });
+  }
+
+  async updateWithVersion(
+    offerId: string,
+    data: Record<string, unknown>,
+    expectedVersion: number,
+  ): Promise<OfferWithRelations> {
+    const result = await this.prisma.offer.updateMany({
+      where: { offerId, version: expectedVersion },
+      data: { ...data, version: { increment: 1 } },
+    });
+
+    if (result.count === 0) {
+      const exists = await this.prisma.offer.findUnique({
+        where: { offerId },
+        select: { offerId: true },
+      });
+      if (!exists) {
+        throw new AppException(
+          ErrorCode.OFFER_NOT_FOUND,
+          `Offer ${offerId} not found`,
+        );
+      }
+      throw new AppException(
+        ErrorCode.OFFER_VERSION_CONFLICT,
+        'Offer has changed. Reload it and retry with the current version.',
+      );
+    }
+
+    const updated = await this.findById(offerId);
+    if (!updated) {
+      throw new AppException(
+        ErrorCode.OFFER_NOT_FOUND,
+        `Offer ${offerId} not found`,
+      );
+    }
+    return updated;
   }
 
   search(

@@ -61,9 +61,11 @@ export class OfferService {
   }
 
   async update(id: string, dto: UpdateOfferDto): Promise<Offer> {
-    const updated = (await this.repo.update(
+    const { expectedVersion, ...changes } = dto;
+    const updated = (await this.repo.updateWithVersion(
       id,
-      dto as unknown as Record<string, unknown>,
+      changes as Record<string, unknown>,
+      expectedVersion,
     )) as Offer;
 
     await this.auditLogService.create({
