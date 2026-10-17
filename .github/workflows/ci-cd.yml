@@ -37,6 +37,17 @@ jobs:
 
       - run: pnpm run test
 
+      - name: Generate OpenAPI contract
+        run: pnpm run openapi:generate
+
+      - name: Publish OpenAPI contract artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-settle-openapi-${{ github.sha }}
+          path: contracts/openapi.json
+          if-no-files-found: error
+          retention-days: 30
+
   deploy:
     name: Build & Deploy to Cloud Run
     needs: test

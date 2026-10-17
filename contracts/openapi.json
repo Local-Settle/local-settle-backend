@@ -1,0 +1,521 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LocalSettle Backend API",
+    "version": "1.0.0",
+    "description": "Versioned API contract consumed by the LocalSettle frontend."
+  },
+  "paths": {
+    "/offers": {
+      "get": {
+        "operationId": "listOffers",
+        "responses": {
+          "200": {
+            "description": "Offer list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Offer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createOffer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOffer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Offer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/offers/{id}": {
+      "get": {
+        "operationId": "getOffer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Offer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateOffer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOffer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Offer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "operationId": "listOrders",
+        "responses": {
+          "200": {
+            "description": "Order list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Order"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createOrder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment-methods": {
+      "get": {
+        "operationId": "listPaymentMethods",
+        "responses": {
+          "200": {
+            "description": "Payment methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentMethod"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPaymentMethod",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentMethod"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created payment method",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethod"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Offer": {
+        "type": "object",
+        "required": [
+          "offerId",
+          "creatorId",
+          "type",
+          "assetCode",
+          "price",
+          "minAmount",
+          "maxAmount",
+          "status"
+        ],
+        "properties": {
+          "offerId": {
+            "type": "string"
+          },
+          "creatorId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "assetCode": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "minAmount": {
+            "type": "string"
+          },
+          "maxAmount": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "closed"
+            ]
+          },
+          "executed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateOffer": {
+        "type": "object",
+        "required": [
+          "creatorId",
+          "type",
+          "assetCode",
+          "price",
+          "minAmount",
+          "maxAmount"
+        ],
+        "properties": {
+          "creatorId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "assetCode": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "minAmount": {
+            "type": "string"
+          },
+          "maxAmount": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "closed"
+            ]
+          },
+          "paymentMethodIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpdateOffer": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "assetCode": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "minAmount": {
+            "type": "string"
+          },
+          "maxAmount": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "closed"
+            ]
+          },
+          "paymentMethodIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": [
+          "orderId",
+          "offerId",
+          "buyerId",
+          "sellerId",
+          "assetAmount",
+          "fiatAmount",
+          "orderStatus"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "offerId": {
+            "type": "string"
+          },
+          "buyerId": {
+            "type": "string"
+          },
+          "sellerId": {
+            "type": "string"
+          },
+          "assetAmount": {
+            "type": "string"
+          },
+          "fiatAmount": {
+            "type": "string"
+          },
+          "orderStatus": {
+            "type": "string",
+            "enum": [
+              "created",
+              "locked",
+              "released",
+              "cancelled",
+              "expired",
+              "disputed"
+            ]
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateOrder": {
+        "type": "object",
+        "required": [
+          "offerId",
+          "buyerId",
+          "sellerId",
+          "assetAmount",
+          "fiatAmount",
+          "sellerAddress",
+          "buyerAddress",
+          "assetCode"
+        ],
+        "properties": {
+          "offerId": {
+            "type": "string"
+          },
+          "buyerId": {
+            "type": "string"
+          },
+          "sellerId": {
+            "type": "string"
+          },
+          "assetAmount": {
+            "type": "string"
+          },
+          "fiatAmount": {
+            "type": "string"
+          },
+          "sellerAddress": {
+            "type": "string"
+          },
+          "buyerAddress": {
+            "type": "string"
+          },
+          "assetCode": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentMethod": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "userId",
+          "providerId",
+          "type",
+          "accountIdentifier"
+        ],
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "BANK",
+              "MOBILE",
+              "PLATFORM"
+            ]
+          },
+          "accountIdentifier": {
+            "type": "string"
+          },
+          "beneficiaryName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "identificationNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreatePaymentMethod": {
+        "type": "object",
+        "required": [
+          "userId",
+          "providerId",
+          "accountIdentifier"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "accountIdentifier": {
+            "type": "string"
+          },
+          "beneficiaryName": {
+            "type": "string"
+          },
+          "identificationNumber": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
