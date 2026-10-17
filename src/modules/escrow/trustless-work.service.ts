@@ -20,6 +20,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { AppException, ErrorCode } from '../../common/errors';
+import { ProviderRequestQueue } from '../../common/provider-request-queue';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import {
   InitializeMultiReleaseEscrowPayload,
@@ -36,6 +37,7 @@ import {
 @Injectable()
 export class TrustlessWorkService {
   private readonly http: AxiosInstance;
+  private readonly trustlessQueue: ProviderRequestQueue;
   private readonly logger = new Logger(TrustlessWorkService.name);
 
   constructor(private readonly config: ConfigService) {
@@ -53,6 +55,11 @@ export class TrustlessWorkService {
         'x-api-key': apiKey,
       },
     });
+    this.trustlessQueue = new ProviderRequestQueue(
+      Number(this.config.get<string>('TRUSTLESS_WORK_MAX_CONCURRENT_REQUESTS') ?? 3),
+      Number(this.config.get<string>('TRUSTLESS_WORK_MAX_QUEUED_REQUESTS') ?? 15),
+      Number(this.config.get<string>('TRUSTLESS_WORK_QUEUE_TIMEOUT_MS') ?? 10_000),
+    );
 
     // Log outgoing payloads in debug mode so validation errors are easy to diagnose
     this.http.interceptors.request.use((req) => {
@@ -294,21 +301,25 @@ export class TrustlessWorkService {
   // ─── HTTP helpers ──────────────────────────────────────────────────────────
 
   private async post<T>(url: string, data: unknown): Promise<T> {
-    try {
-      const res = await this.http.post<T>(url, data);
-      return res.data;
-    } catch (err) {
-      this.handleError(err, `POST ${url}`);
-    }
+    return this.trustlessQueue.run(async () => {
+      try {
+        const res = await this.http.post<T>(url, data);
+        return res.data;
+      } catch (err) {
+        this.handleError(err, `POST ${url}`);
+      }
+    });
   }
 
   private async get<T>(url: string, config?: object): Promise<T> {
-    try {
-      const res = await this.http.get<T>(url, config);
-      return res.data;
-    } catch (err) {
-      this.handleError(err, `GET ${url}`);
-    }
+    return this.trustlessQueue.run(async () => {
+      try {
+        const res = await this.http.get<T>(url, config);
+        return res.data;
+      } catch (err) {
+        this.handleError(err, `GET ${url}`);
+      }
+    });
   }
 
   private handleError(err: unknown, context: string): never {
