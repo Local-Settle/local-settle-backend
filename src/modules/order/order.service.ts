@@ -176,6 +176,7 @@ export class OrderService {
 
   async update(id: string, dto: UpdateOrderDto): Promise<Order> {
     const data: Record<string, unknown> = { ...dto };
+    delete data.orderStatus;
     if (dto.expiresAt) data.expiresAt = new Date(dto.expiresAt);
     const updated = (await this.repo.update(id, data)) as Order;
 
