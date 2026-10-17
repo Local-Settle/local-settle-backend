@@ -14,6 +14,7 @@ import { OnChainEscrowEvent } from './types/stellar-event.types';
 import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
 import { EscrowService } from '../escrow/escrow.service';
 import { OrderService } from '../order/order.service';
+import { escrowEventFixtures } from './fixtures/escrow-events';
 
 interface MockEscrowRecord {
   escrowId: string;
@@ -34,6 +35,7 @@ describe('StellarListenerService', () => {
   let updateEscrowMock: jest.Mock;
   let updateOrderMock: jest.Mock;
   let createAuditMock: jest.Mock;
+  let parser: StellarEventParserService;
 
   const mockEscrow: MockEscrowRecord = {
     escrowId: 'escrow-123',
@@ -138,6 +140,7 @@ describe('StellarListenerService', () => {
     }).compile();
 
     service = module.get(StellarListenerService);
+    parser = module.get(StellarEventParserService);
   });
 
   afterEach(() => {
@@ -146,6 +149,14 @@ describe('StellarListenerService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('processes an event parsed from the shared Soroban fixture', async () => {
+    const fixture = escrowEventFixtures.find((item) => item.name === 'fund');
+    const event = fixture && parser.parseEvent(fixture.raw);
+
+    expect(event).not.toBeNull();
+    expect(event && (await service.processEvent(event))).toBe(true);
   });
 
   it('should process ESCROW_FUNDED event and update database & audit logs', async () => {

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StellarEventParserService } from './stellar-event-parser.service';
+import { escrowEventFixtures } from './fixtures/escrow-events';
 
 describe('StellarEventParserService', () => {
   let parser: StellarEventParserService;
@@ -14,6 +15,14 @@ describe('StellarEventParserService', () => {
 
   it('should be defined', () => {
     expect(parser).toBeDefined();
+  });
+
+  it('parses the shared, versioned event fixtures', () => {
+    for (const fixture of escrowEventFixtures) {
+      expect(parser.parseEvent(fixture.raw)?.eventType ?? null).toBe(
+        fixture.expectedType,
+      );
+    }
   });
 
   it('should parse ESCROW_FUNDED event correctly', () => {
