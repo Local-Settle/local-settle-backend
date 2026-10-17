@@ -18,7 +18,8 @@
 
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError, AxiosResponse } from 'axios';
+import { randomUUID } from 'crypto';
 import { AppException, ErrorCode } from '../../common/errors';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import {
@@ -37,6 +38,7 @@ import {
 export class TrustlessWorkService {
   private readonly http: AxiosInstance;
   private readonly logger = new Logger(TrustlessWorkService.name);
+  private readonly requestMeta = new WeakMap<object, { id: string; startedAt: number }>();
 
   constructor(private readonly config: ConfigService) {
     const baseURL =
@@ -54,12 +56,18 @@ export class TrustlessWorkService {
       },
     });
 
-    // Log outgoing payloads in debug mode so validation errors are easy to diagnose
+    // Request bodies include signed XDR, wallet addresses and evidence. Never log
+    // them; the method and path are enough to correlate an upstream request.
     this.http.interceptors.request.use((req) => {
-      this.logger.debug(
-        `TW → ${req.method?.toUpperCase()} ${req.url}\n${JSON.stringify(req.data, null, 2)}`,
-      );
+      const meta = { id: randomUUID(), startedAt: Date.now() };
+      this.requestMeta.set(req, meta);
+      this.logger.debug(`Trustless Work request ${meta.id} ${req.method?.toUpperCase()} ${req.url}`);
       return req;
+    });
+    this.http.interceptors.response.use((res: AxiosResponse) => {
+      const meta = this.requestMeta.get(res.config);
+      this.logger.debug(`Trustless Work response ${meta?.id ?? 'unknown'} status=${res.status} durationMs=${meta ? Date.now() - meta.startedAt : 'unknown'}`);
+      return res;
     });
   }
 
@@ -314,27 +322,18 @@ export class TrustlessWorkService {
   private handleError(err: unknown, context: string): never {
     if (err instanceof AxiosError) {
       const status = err.response?.status ?? HttpStatus.BAD_GATEWAY;
-      const responseData = err.response?.data as
-        | { message?: string; error?: string }
-        | undefined;
-
+      const meta = err.config ? this.requestMeta.get(err.config) : undefined;
       this.logger.error(
-        `Trustless Work API error [${context}]\n` +
-          `  Status : ${status}\n` +
-          `  Body   : ${JSON.stringify(responseData, null, 2)}\n` +
-          `  Message: ${err.message}`,
+        `Trustless Work API error [${context}] requestId=${meta?.id ?? 'unknown'} status=${status} durationMs=${meta ? Date.now() - meta.startedAt : 'unknown'}`,
       );
-
-      const message =
-        responseData?.message ?? responseData?.error ?? err.message;
 
       throw new AppException(
         ErrorCode.ESCROW_CREATION_FAILED,
-        `Escrow operation failed: ${message}`,
+        `Escrow operation failed (upstream status ${status})`,
       );
     }
 
-    this.logger.error(`Unexpected error [${context}]:`, err);
+    this.logger.error(`Unexpected error [${context}]`);
     throw new AppException(
       ErrorCode.INTERNAL_SERVER_ERROR,
       'Unexpected error communicating with Trustless Work',
