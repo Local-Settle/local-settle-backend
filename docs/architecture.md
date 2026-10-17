@@ -36,3 +36,7 @@ The API resolves a Stellar address or LocalSettle alias, calculates the configur
 - The current application has no in-app refund operation. Do not describe cancellation as a reversal after funds enter escrow.
 
 This document describes code paths and configuration present in the repository. Deployment behavior also depends on environment variables, external service configuration, and the contracts used by Trustless Work.
+
+### Date and time boundaries
+
+Persisted timestamps and API instants are interpreted in UTC. Statistics group records by UTC calendar date, and range windows use UTC midnight boundaries; a range start is inclusive and a range end is exclusive. Clients may render those instants in a user's local timezone, but must not submit timezone-free local timestamps. Scheduled order expiration compares the stored UTC `expiresAt` instant with the current UTC instant and expires an order only when `expiresAt < now`; an order exactly at the boundary remains active until the next scheduler pass.

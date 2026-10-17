@@ -26,7 +26,7 @@ export class StatsService {
         select: { createdAt: true },
       }),
       this.prisma.$queryRaw<{ date: string; count: bigint }[]>`
-        SELECT DATE(created_at)::text AS date, COUNT(*)::int AS count
+        SELECT DATE(created_at AT TIME ZONE 'UTC')::text AS date, COUNT(*)::int AS count
         FROM waitlist
         GROUP BY DATE(created_at)
         ORDER BY date ASC
@@ -48,16 +48,16 @@ export class StatsService {
 
     const window = query.window || '7d';
     const now = new Date();
-    now.setHours(23, 59, 59, 999);
+    now.setUTCHours(23, 59, 59, 999);
 
     // Build full cumulative timeline from earliest data to today
     let fullStartDate: Date;
     if (dailyCounts.length > 0) {
-      fullStartDate = new Date(dailyCounts[0].date + 'T00:00:00');
+      fullStartDate = new Date(`${dailyCounts[0].date}T00:00:00.000Z`);
     } else {
       fullStartDate = new Date(now);
     }
-    fullStartDate.setHours(0, 0, 0, 0);
+    fullStartDate.setUTCHours(0, 0, 0, 0);
 
     const fullTimeline: { date: string; count: number }[] = [];
     const cursor = new Date(fullStartDate);
@@ -76,7 +76,7 @@ export class StatsService {
       }
 
       fullTimeline.push({ date: dateStr, count: runningTotal });
-      cursor.setDate(cursor.getDate() + 1);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
 
     // Determine window start for filtering
@@ -85,11 +85,11 @@ export class StatsService {
     switch (window) {
       case '2s':
         windowStart = new Date(now);
-        windowStart.setDate(windowStart.getDate() - 13);
+        windowStart.setUTCDate(windowStart.getUTCDate() - 13);
         break;
       case '1m':
         windowStart = new Date(now);
-        windowStart.setMonth(windowStart.getMonth() - 1);
+        windowStart.setUTCMonth(windowStart.getUTCMonth() - 1);
         break;
       case 'all':
         windowStart = new Date(fullStartDate);
@@ -97,10 +97,10 @@ export class StatsService {
       case '7d':
       default:
         windowStart = new Date(now);
-        windowStart.setDate(windowStart.getDate() - 6);
+        windowStart.setUTCDate(windowStart.getUTCDate() - 6);
         break;
     }
-    windowStart.setHours(0, 0, 0, 0);
+    windowStart.setUTCHours(0, 0, 0, 0);
 
     const windowStartStr = this.formatDate(windowStart);
     const waitlistTimeline = fullTimeline.filter(
@@ -120,15 +120,15 @@ export class StatsService {
 
   private monthsBetween(start: Date, end: Date): number {
     return (
-      (end.getFullYear() - start.getFullYear()) * 12 +
-      (end.getMonth() - start.getMonth())
+      (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+      (end.getUTCMonth() - start.getUTCMonth())
     );
   }
 
   private formatDate(date: Date): string {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
 }
