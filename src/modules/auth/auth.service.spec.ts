@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AppException, ErrorCode } from '../../common/errors';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { AuditAction } from '../audit-log/enums/audit-action.enum';
 
 interface StoredChallenge {
   challengeId: string;
@@ -174,6 +175,45 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
+    it('limits repeated failed signatures and records a sanitized rate-limit event', async () => {
+      process.env.AUTH_FAILED_SIGNATURE_RATE_LIMIT_MAX = '1';
+      const stored = buildStored();
+      prismaMock.authChallenge.findUnique.mockResolvedValue(stored);
+      const invalidSignature = signChallenge(stored.challenge, Keypair.random());
+
+      await expectAppException(
+        service.login(
+          {
+            publicKey,
+            challenge: stored.challenge,
+            signature: invalidSignature,
+          },
+          { ipAddress: '203.0.113.9' },
+        ),
+        ErrorCode.INVALID_SIGNATURE,
+        HttpStatus.UNAUTHORIZED,
+      );
+      await expectAppException(
+        service.login(
+          {
+            publicKey,
+            challenge: stored.challenge,
+            signature: invalidSignature,
+          },
+          { ipAddress: '203.0.113.9' },
+        ),
+        ErrorCode.TOO_MANY_REQUESTS,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+
+      expect(auditLogMock.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: AuditAction.AUTH_RATE_LIMITED,
+          metadata: { operation: 'failed_signature', scope: 'wallet' },
+        }),
+      );
+      delete process.env.AUTH_FAILED_SIGNATURE_RATE_LIMIT_MAX;
+    });
     it('issues a JWT for a SEP-53 wallet signature', async () => {
       const stored = buildStored();
       prismaMock.authChallenge.findUnique.mockResolvedValue(stored);
