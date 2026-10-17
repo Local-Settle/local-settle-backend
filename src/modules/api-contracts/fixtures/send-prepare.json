@@ -1,0 +1,12 @@
+{
+  "recipient": {
+    "address": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+    "alias": "buyer_1"
+  },
+  "asset": "USDC",
+  "amount": "10.0000000",
+  "fee": "0.0300000",
+  "total": "10.0300000",
+  "unsignedXdr": "AAAA...",
+  "networkPassphrase": "Test SDF Network ; September 2015"
+}
