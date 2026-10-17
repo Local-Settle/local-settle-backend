@@ -105,6 +105,16 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
     }, delayMs);
   }
 
+  private emitMetric(
+    name: string,
+    value: number,
+    labels: Record<string, string> = {},
+  ) {
+    // Labels are fixed enums only; never include contract, order, wallet, or
+    // transaction identifiers in operational metrics.
+    this.logger.log(JSON.stringify({ metric: name, value, labels }));
+  }
+
   /**
    * Polling loop with automatic reconnection & recovery.
    */
@@ -135,6 +145,12 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
 
     const { events: rawEvents, latestLedger } =
       await this.queryEventsFromRpc(targetContracts);
+    if (latestLedger !== undefined) {
+      this.emitMetric(
+        'stellar.listener.poll_lag_ledgers',
+        Math.max(0, latestLedger - this.lastProcessedLedger),
+      );
+    }
     let processedCount = 0;
 
     for (const raw of rawEvents) {
@@ -207,6 +223,7 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
   private async queryEventsFromRpc(
     contractIds: string[],
   ): Promise<{ events: SorobanEventRaw[]; latestLedger?: number }> {
+    const startedAt = Date.now();
     try {
       const body = {
         jsonrpc: '2.0',
@@ -231,10 +248,14 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
         error?: unknown;
         result?: { events?: SorobanEventRaw[]; latestLedger?: number };
       }>(this.rpcUrl, body, { timeout: 10000 });
-
       if (res.data.error) {
         throw new Error(`Soroban RPC error: ${JSON.stringify(res.data.error)}`);
       }
+
+      this.emitMetric('stellar.rpc.request.duration_ms', Date.now() - startedAt, {
+        provider: 'soroban',
+        result: 'success',
+      });
 
       const events: SorobanEventRaw[] = res.data.result?.events || [];
       const latestLedger = res.data.result?.latestLedger
@@ -243,6 +264,10 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
 
       return { events, latestLedger };
     } catch (err: unknown) {
+      this.emitMetric('stellar.rpc.request.duration_ms', Date.now() - startedAt, {
+        provider: 'soroban',
+        result: 'error',
+      });
       const message = err instanceof Error ? err.message : String(err);
       this.logger.debug(
         `RPC call getEvents failed/fallback to Horizon: ${message}`,
@@ -340,6 +365,10 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
     );
 
     this.processedEventIds.add(eventKey);
+    this.emitMetric('escrow.transition.total', 1, {
+      event: event.eventType,
+      result: 'success',
+    });
     this.logger.log(
       `Successfully synchronized event ${event.eventType} for Escrow ${escrow.escrowId} (Order ${escrow.orderId})`,
     );
