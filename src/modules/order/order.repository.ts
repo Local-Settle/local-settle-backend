@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../common/base.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { Order, Prisma } from '@prisma/client';
+import { Order, Prisma, escrow_status } from '@prisma/client';
 import {
   ORDER_PARTY_SELECT,
   PAYMENT_METHOD_SELECT,
@@ -109,6 +109,28 @@ export class OrderRepository extends BaseRepository {
       where: { orderId: id },
       include: ORDER_DETAIL_INCLUDE,
     });
+  }
+
+  /**
+   * Applies a status-bearing PATCH only while the order and (when supplied)
+   * its escrow still match the states validated by the caller. This prevents
+   * a concurrent terminal transition from being overwritten by a stale PATCH.
+   */
+  async updateIfStatusesMatch(
+    id: string,
+    expectedOrderStatus: Order['orderStatus'],
+    expectedEscrowStatus: escrow_status | undefined,
+    data: Prisma.OrderUpdateManyMutationInput,
+  ): Promise<boolean> {
+    const where: Prisma.OrderWhereInput = {
+      orderId: id,
+      orderStatus: expectedOrderStatus,
+      ...(expectedEscrowStatus
+        ? { escrow: { is: { escrowStatus: expectedEscrowStatus } } }
+        : {}),
+    };
+    const result = await this.prisma.order.updateMany({ where, data });
+    return result.count === 1;
   }
 
   async getUserStats(

@@ -12,6 +12,7 @@ describe('OrderRepository', () => {
     findUnique: jest.fn().mockResolvedValue(null),
     groupBy: jest.fn().mockResolvedValue([]),
     count: jest.fn().mockResolvedValue(0),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
   };
 
   const repo = new OrderRepository({ order } as unknown as PrismaService);
@@ -21,6 +22,7 @@ describe('OrderRepository', () => {
     order.findMany.mockResolvedValue([]);
     order.findUnique.mockResolvedValue(null);
     order.groupBy.mockResolvedValue([]);
+    order.updateMany.mockResolvedValue({ count: 1 });
   });
 
   describe('relation projections', () => {
@@ -116,6 +118,33 @@ describe('OrderRepository', () => {
         totalOrders: 0,
         completedOrders: 0,
       });
+    });
+  });
+
+  describe('updateIfStatusesMatch', () => {
+    it('conditions the write on both observed order and escrow statuses', async () => {
+      await repo.updateIfStatusesMatch('order-1', 'created', 'funded', {
+        orderStatus: 'locked',
+      });
+
+      expect(order.updateMany).toHaveBeenCalledWith({
+        where: {
+          orderId: 'order-1',
+          orderStatus: 'created',
+          escrow: { is: { escrowStatus: 'funded' } },
+        },
+        data: { orderStatus: 'locked' },
+      });
+    });
+
+    it('returns false when another transition already changed the state', async () => {
+      order.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        repo.updateIfStatusesMatch('order-1', 'created', 'funded', {
+          orderStatus: 'locked',
+        }),
+      ).resolves.toBe(false);
     });
   });
 });
