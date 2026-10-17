@@ -19,6 +19,10 @@ import { OpenEscrowDto } from './dto/open-escrow.dto';
 import { InitializeEscrowDto } from './dto/initialize-escrow.dto';
 import { FundEscrowDto } from './dto/fund-escrow.dto';
 import type { UploadFileInput } from '../file-storage/file-storage.service';
+import {
+  EVIDENCE_FILE_SIZE_LIMIT,
+  MULTIPART_FIELD_LIMITS,
+} from '../../common/request-limits';
 import { FiatSentDto } from './dto/fiat-sent.dto';
 import { ReleaseEscrowDto } from './dto/release-escrow.dto';
 import { SyncEscrowDto } from './dto/sync-escrow.dto';
@@ -81,7 +85,12 @@ export class EscrowController {
   @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
   @ResourceOwner(ResourceType.ESCROW)
   @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+    FileInterceptor('file', {
+      limits: {
+        fileSize: EVIDENCE_FILE_SIZE_LIMIT,
+        ...MULTIPART_FIELD_LIMITS,
+      },
+    }),
   )
   uploadEvidence(
     @Param('id') id: string,

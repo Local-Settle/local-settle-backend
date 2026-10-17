@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ErrorCode } from './error-codes.enum';
+import { PAYLOAD_TOO_LARGE_RESPONSE } from '../request-limits';
 
 /**
  * Global exception filter that normalises ALL HTTP exceptions — both
@@ -26,6 +27,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+
+    if (this.isPayloadTooLarge(exception)) {
+      return response.status(HttpStatus.PAYLOAD_TOO_LARGE).json({
+        ...PAYLOAD_TOO_LARGE_RESPONSE,
+        error: ErrorCode.PAYLOAD_TOO_LARGE,
+      });
+    }
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
@@ -66,6 +74,26 @@ export class HttpExceptionFilter implements ExceptionFilter {
     });
   }
 
+  private isPayloadTooLarge(exception: unknown): boolean {
+    if (!exception || typeof exception !== 'object') return false;
+    const error = exception as {
+      status?: number;
+      statusCode?: number;
+      code?: string;
+      type?: string;
+    };
+    return (
+      error.status === HttpStatus.PAYLOAD_TOO_LARGE ||
+      error.statusCode === HttpStatus.PAYLOAD_TOO_LARGE ||
+      error.type === 'entity.too.large' ||
+      error.code === 'LIMIT_FILE_SIZE' ||
+      error.code === 'LIMIT_FIELD_VALUE' ||
+      error.code === 'LIMIT_FIELD_COUNT' ||
+      error.code === 'LIMIT_PART_COUNT' ||
+      error.code === 'LIMIT_FILE_COUNT'
+    );
+  }
+
   private extractMessage(raw: unknown): string {
     if (typeof raw === 'string') return raw;
 
@@ -89,6 +117,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       401: ErrorCode.UNAUTHORIZED_ACTION,
       403: ErrorCode.UNAUTHORIZED_ACTION,
       404: ErrorCode.RESOURCE_NOT_FOUND, // generic fallback; AppException provides precision
+      413: ErrorCode.PAYLOAD_TOO_LARGE,
       422: ErrorCode.VALIDATION_ERROR,
       500: ErrorCode.INTERNAL_SERVER_ERROR,
       502: ErrorCode.INTERNAL_SERVER_ERROR,

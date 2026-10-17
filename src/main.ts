@@ -7,10 +7,23 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/errors';
 import { parseCookies } from './common/guards/csrf.guard';
+import {
+  JSON_BODY_LIMIT,
+  URLENCODED_BODY_LIMIT,
+} from './common/request-limits';
+import { requestSizeErrorHandler } from './common/request-size-error-handler';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
+    bodyParser: false,
+  });
+
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
+  app.useBodyParser('urlencoded', {
+    extended: true,
+    limit: URLENCODED_BODY_LIMIT,
+    parameterLimit: 100,
   });
 
   app.use(helmet());
@@ -61,6 +74,8 @@ async function bootstrap() {
 
   // 👇 CORRECCIÓN AQUÍ: Agrega '0.0.0.0' como segundo parámetro
   const port = process.env.PORT ?? 3001;
+  await app.init();
+  app.use(requestSizeErrorHandler);
   await app.listen(port, '0.0.0.0');
 
   console.log(`Application is running on port ${port}`);
