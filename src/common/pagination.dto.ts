@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsInt, IsOptional, Min } from 'class-validator';
+import { IsInt, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class PaginationDto {
   @IsOptional()
@@ -13,4 +13,8 @@ export class PaginationDto {
   @IsInt()
   @Min(1)
   take?: number = 20;
+
+  @IsOptional()
+  @IsUUID()
+  cursor?: string;
 }
