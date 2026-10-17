@@ -90,6 +90,17 @@ export class OrderService {
    *    prompt the seller to sign.
    */
   async create(dto: CreateOrderDto): Promise<OrderDetailResponse> {
+    const activeDuplicate = await this.repo.findActiveForOfferBuyer(
+      dto.offerId,
+      dto.buyerId,
+    );
+    if (activeDuplicate) {
+      throw new AppException(
+        ErrorCode.INVALID_ORDER_STATUS,
+        'An active order already exists for this buyer and offer.',
+      );
+    }
+
     const orderId = randomUUID();
 
     this.logger.log(
