@@ -40,30 +40,40 @@ export class EscrowController {
    * Call this when an order is confirmed.
    */
   @Post('open')
+  @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
+  @ResourceOwner(ResourceType.ORDER, 'orderId')
   open(@Body() dto: OpenEscrowDto) {
     return this.service.open(dto);
   }
 
   /** Get unsigned XDR to deploy a new escrow contract (advanced / manual use) */
   @Post('initialize')
+  @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
+  @ResourceOwner(ResourceType.ORDER, 'orderId')
   initialize(@Body() dto: InitializeEscrowDto) {
     return this.service.initialize(dto);
   }
 
   /** Get unsigned XDR to fund an existing escrow */
   @Post('fund')
+  @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
+  @ResourceOwner(ResourceType.ESCROW, 'escrowId')
   fund(@Body() dto: FundEscrowDto) {
     return this.service.fund(dto);
   }
 
   /** Get unsigned XDR to release escrow funds */
   @Post('release')
+  @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
+  @ResourceOwner(ResourceType.ESCROW, 'escrowId')
   release(@Body() dto: ReleaseEscrowDto) {
     return this.service.release(dto);
   }
 
   /** Submit signed XDR and update DB status */
   @Post('sync')
+  @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
+  @ResourceOwner(ResourceType.ESCROW, 'escrowId')
   sync(@Body() dto: SyncEscrowDto) {
     return this.service.syncTransaction(dto);
   }

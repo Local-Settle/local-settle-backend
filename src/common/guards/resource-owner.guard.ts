@@ -44,7 +44,11 @@ export class ResourceOwnerGuard implements CanActivate {
       );
     }
 
-    const rawResourceId = request.params?.[metadata.paramKey];
+    const rawResourceId =
+      request.params?.[metadata.paramKey] ??
+      (request.body as Record<string, unknown> | undefined)?.[
+        metadata.paramKey
+      ];
     const resourceId = Array.isArray(rawResourceId)
       ? rawResourceId[0]
       : rawResourceId;
@@ -57,8 +61,19 @@ export class ResourceOwnerGuard implements CanActivate {
 
     const requester = await this.prisma.appUser.findUnique({
       where: { userId },
-      select: { role: true },
+      select: { role: true, publicKey: true },
     });
+
+    if (
+      requester &&
+      request.user?.publicKey &&
+      requester.publicKey !== request.user.publicKey
+    ) {
+      throw new AppException(
+        ErrorCode.UNAUTHORIZED_ACTION,
+        'Authenticated wallet does not match the user account.',
+      );
+    }
 
     if (requester && PRIVILEGED_ROLES.has(requester.role)) {
       return true;
@@ -80,7 +95,66 @@ export class ResourceOwnerGuard implements CanActivate {
       );
     }
 
+    await this.validateEscrowParticipantFields(
+      metadata.type,
+      resourceId,
+      request.user?.publicKey,
+      (request.body ?? {}) as Record<string, unknown>,
+    );
+
     return true;
+  }
+
+  private async validateEscrowParticipantFields(
+    type: ResourceType,
+    resourceId: string,
+    publicKey: string | undefined,
+    body: Record<string, unknown>,
+  ): Promise<void> {
+    if (type === ResourceType.ORDER && body.buyerAddress && body.sellerAddress) {
+      const order = await this.prisma.order.findUnique({
+        where: { orderId: resourceId },
+        select: {
+          buyer: { select: { publicKey: true } },
+          seller: { select: { publicKey: true } },
+        },
+      });
+      if (
+        !order ||
+        body.buyerAddress !== order.buyer.publicKey ||
+        body.sellerAddress !== order.seller.publicKey
+      ) {
+        throw new AppException(
+          ErrorCode.UNAUTHORIZED_ACTION,
+          'Escrow participant addresses must match the order.',
+        );
+      }
+    }
+
+    if (type !== ResourceType.ESCROW) return;
+    const signerField =
+      typeof body.signerAddress === 'string'
+        ? body.signerAddress
+        : typeof body.releaseSigner === 'string'
+          ? body.releaseSigner
+          : undefined;
+    if (!signerField) return;
+
+    const escrow = await this.prisma.escrowOnChain.findUnique({
+      where: { escrowId: resourceId },
+      select: { buyerAddress: true, sellerAddress: true },
+    });
+    if (
+      !escrow ||
+      !publicKey ||
+      signerField !== publicKey ||
+      signerField !== escrow.sellerAddress
+    ) {
+      throw new AppException(
+        ErrorCode.UNAUTHORIZED_ACTION,
+        'Only the escrow seller may submit this signer address.',
+      );
+    }
   }
 
   private async resolveOwnerIds(
