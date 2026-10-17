@@ -9,6 +9,7 @@ import {
   Memo,
   Networks,
   Operation,
+  StrKey,
   Transaction,
   TransactionBuilder,
 } from '@stellar/stellar-sdk';
@@ -318,10 +319,10 @@ export class StellarService {
   }
 
   private assertPublicKey(key: string): void {
-    if (!key || key[0] !== 'G' || key.length < 50) {
+    if (!StrKey.isValidEd25519PublicKey(key)) {
       throw new AppException(
         ErrorCode.INVALID_STELLAR_ADDRESS,
-        'Invalid public key. Must start with "G" and be at least 50 characters.',
+        'Invalid Stellar account public key.',
       );
     }
   }
