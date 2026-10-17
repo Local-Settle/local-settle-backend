@@ -10,9 +10,7 @@ export class ChatMessageService {
   constructor(private readonly repo: ChatMessageRepository) {}
 
   create(dto: CreateChatMessageDto): Promise<ChatMessage> {
-    return this.repo.create(
-      dto as unknown as Record<string, unknown>,
-    ) as Promise<ChatMessage>;
+    return this.repo.createIdempotent(dto) as Promise<ChatMessage>;
   }
 
   async canAccessOrder(

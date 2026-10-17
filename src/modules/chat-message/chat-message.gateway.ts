@@ -190,6 +190,14 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
         orderId,
       );
     }
+    if (body?.clientMessageId && !this.isValidOrderId(body.clientMessageId)) {
+      return this.fail(
+        client,
+        ChatErrorCode.INVALID_ORDER_ID,
+        'clientMessageId must be a UUID.',
+        orderId,
+      );
+    }
 
     const room = this.roomFor(orderId);
     if (!client.rooms.has(room)) {

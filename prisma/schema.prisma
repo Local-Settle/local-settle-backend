@@ -92,10 +92,13 @@ model ChatMessage {
   messageId String   @id @default(dbgenerated("gen_random_uuid()")) @map("message_id") @db.Uuid
   orderId   String   @map("order_id") @db.Uuid
   senderId  String   @map("sender_id") @db.Uuid
+  clientMessageId String? @map("client_message_id") @db.Uuid
   content   String
   timestamp DateTime @default(now()) @db.Timestamptz(6)
   order     Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade, onUpdate: NoAction)
   sender    AppUser  @relation(fields: [senderId], references: [userId], onUpdate: NoAction)
+
+  @@unique([orderId, senderId, clientMessageId])
 
   @@map("chatmessage")
 }
