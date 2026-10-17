@@ -99,6 +99,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Offer updates require the current `expectedVersion` from the offer response. Successful updates increment the persisted version; stale versions return HTTP 409 with `OFFER_VERSION_CONFLICT`. Existing rows start at version `0` through the `add_offer_version` migration.
+
 ## Development checks
 
 ```bash

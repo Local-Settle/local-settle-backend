@@ -45,6 +45,7 @@ model Offer {
   price           Decimal         @map("price") @db.Decimal(20, 7)
   minAmount       Decimal         @map("min_amount") @db.Decimal(20, 7)
   maxAmount       Decimal         @map("max_amount") @db.Decimal(20, 7)
+  version         Int             @default(0)
   status          offer_status    @default(active)
   executed        Boolean         @default(false)
   creator         AppUser         @relation("UserOffers", fields: [creatorId], references: [userId], onDelete: Cascade, onUpdate: NoAction)

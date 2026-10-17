@@ -42,6 +42,7 @@ export function errorCodeToHttpStatus(code: ErrorCode): HttpStatus {
 
     // ── 409 Conflict ──────────────────────────────────────────────────
     [ErrorCode.ALIAS_TAKEN]: HttpStatus.CONFLICT,
+    [ErrorCode.OFFER_VERSION_CONFLICT]: HttpStatus.CONFLICT,
     [ErrorCode.ORDER_CANCELLATION_NOT_ALLOWED]: HttpStatus.CONFLICT,
 
     // ── 401 Unauthorized ─────────────────────────────────────────────

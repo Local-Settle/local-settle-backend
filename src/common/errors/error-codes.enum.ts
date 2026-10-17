@@ -21,6 +21,7 @@ export enum ErrorCode {
 
   // ── Offer ────────────────────────────────────────────────────────────
   OFFER_NOT_FOUND = 'OFFER_NOT_FOUND',
+  OFFER_VERSION_CONFLICT = 'OFFER_VERSION_CONFLICT',
 
   // ── Order ────────────────────────────────────────────────────────────
   ORDER_NOT_FOUND = 'ORDER_NOT_FOUND',

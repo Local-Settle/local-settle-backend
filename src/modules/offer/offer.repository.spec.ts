@@ -10,6 +10,7 @@ describe('OfferRepository', () => {
     create: jest.fn().mockResolvedValue({ offerId: 'offer-1' }),
     findUnique: jest.fn().mockResolvedValue(null),
     findMany: jest.fn().mockResolvedValue([]),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
   };
   const paymentMethod = { findMany: jest.fn().mockResolvedValue([]) };
 
@@ -23,6 +24,7 @@ describe('OfferRepository', () => {
     offer.create.mockResolvedValue({ offerId: 'offer-1' });
     offer.findUnique.mockResolvedValue(null);
     offer.findMany.mockResolvedValue([]);
+    offer.updateMany.mockResolvedValue({ count: 1 });
     paymentMethod.findMany.mockResolvedValue([]);
   });
 
@@ -54,6 +56,29 @@ describe('OfferRepository', () => {
     expect(offer.findUnique).toHaveBeenCalledWith({
       where: { offerId: 'offer-1' },
       include: OFFER_DETAIL_INCLUDE,
+    });
+  });
+
+  describe('optimistic updates', () => {
+    it('updates only the expected version and increments it atomically', async () => {
+      offer.updateMany.mockResolvedValue({ count: 1 });
+      offer.findUnique.mockResolvedValue({ offerId: 'offer-1', version: 4 });
+
+      await repo.updateWithVersion('offer-1', { price: '12.50' }, 3);
+
+      expect(offer.updateMany).toHaveBeenCalledWith({
+        where: { offerId: 'offer-1', version: 3 },
+        data: { price: '12.50', version: { increment: 1 } },
+      });
+    });
+
+    it('rejects stale versions with a conflict', async () => {
+      offer.updateMany.mockResolvedValue({ count: 0 });
+      offer.findUnique.mockResolvedValue({ offerId: 'offer-1' });
+
+      await expect(
+        repo.updateWithVersion('offer-1', { price: '12.50' }, 2),
+      ).rejects.toThrow('Offer has changed. Reload it and retry with the current version.');
     });
   });
 
