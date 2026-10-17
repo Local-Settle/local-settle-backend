@@ -180,10 +180,8 @@ export class TrustlessWorkService {
   /**
    * Sign an unsigned XDR with a backend-controlled secret key and broadcast it.
    *
-   * Works at the raw byte level to avoid "Bad union switch" errors caused by
-   * stellar-sdk not supporting the latest Soroban XDR types. We never parse
-   * the inner transaction — only slice bytes, compute the hash, and inject
-   * our signature.
+   * Decode, sign, and re-encode the envelope through the Stellar SDK so XDR
+   * parsing and decorated-signature serialization stay aligned with the SDK.
    *
    * SECURITY: signerSecret must come from a backend env var, never from the client.
    */
@@ -193,66 +191,12 @@ export class TrustlessWorkService {
     networkPassphrase: string,
   ): Promise<SendTransactionResponse> {
     const keypair = StellarSdk.Keypair.fromSecret(signerSecret);
-    const raw = Buffer.from(unsignedXdr, 'base64');
-
-    const envelopeTypeValue = raw.readUInt32BE(0);
-    const sigCount = raw.readUInt32BE(raw.length - 4);
-
-    if (sigCount !== 0) {
-      this.logger.warn(
-        `Envelope already has ${sigCount} signature(s) — appending ours`,
-      );
-    }
-
-    const txBodyBytes = raw.subarray(4, raw.length - 4);
-
-    const networkId = StellarSdk.hash(Buffer.from(networkPassphrase));
-    const typeTag = Buffer.alloc(4);
-    typeTag.writeUInt32BE(envelopeTypeValue, 0);
-
-    const hashPreimage = Buffer.concat([networkId, typeTag, txBodyBytes]);
-    const txHash = StellarSdk.hash(hashPreimage);
-
-    const signature = keypair.sign(txHash);
-    const hint = keypair.signatureHint();
-
-    // DecoratedSignature XDR: hint(4) + length_prefix(4) + signature(64)
-    const decoratedSig = Buffer.alloc(4 + 4 + 64);
-    hint.copy(decoratedSig, 0);
-    decoratedSig.writeUInt32BE(64, 4);
-    signature.copy(decoratedSig, 8);
-
-    const newSigCount = Buffer.alloc(4);
-    newSigCount.writeUInt32BE(sigCount + 1, 0);
-
-    let signedEnvelope: Buffer;
-
-    if (sigCount > 0) {
-      // Each decorated signature = 4 (hint) + 4 (len prefix) + 64 (sig) = 72 bytes
-      const existingSigsLength = sigCount * 72;
-      const existingSigs = raw.subarray(
-        raw.length - 4 - existingSigsLength,
-        raw.length - 4,
-      );
-      const txEnd = raw.length - 4 - existingSigsLength;
-
-      signedEnvelope = Buffer.concat([
-        raw.subarray(0, 4), // envelope type
-        raw.subarray(4, txEnd), // tx body
-        newSigCount, // updated sig count
-        existingSigs, // existing signatures
-        decoratedSig, // our new signature
-      ]);
-    } else {
-      signedEnvelope = Buffer.concat([
-        raw.subarray(0, 4), // envelope type
-        txBodyBytes, // tx body
-        newSigCount, // sig count = 1
-        decoratedSig, // our signature
-      ]);
-    }
-
-    const signedXdr = signedEnvelope.toString('base64');
+    const transaction = StellarSdk.TransactionBuilder.fromXDR(
+      unsignedXdr,
+      networkPassphrase,
+    );
+    transaction.sign(keypair);
+    const signedXdr = transaction.toXDR();
 
     this.logger.debug(
       `Broadcasting backend-signed tx for signer ${keypair.publicKey().substring(0, 8)}…`,
