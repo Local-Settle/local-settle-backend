@@ -112,3 +112,54 @@ describe('OrderService.cancel', () => {
     },
   );
 });
+
+describe('OrderService.getUserStats access policy', () => {
+  let service: OrderService;
+  const repo = { getUserStats: jest.fn() };
+  const prisma = { appUser: { findUnique: jest.fn() } };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrderService,
+        { provide: OrderRepository, useValue: repo },
+        { provide: EscrowService, useValue: {} },
+        { provide: AuditLogService, useValue: { create: jest.fn() } },
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    service = module.get(OrderService);
+    repo.getUserStats.mockResolvedValue({ totalOrders: 3, completedOrders: 1 });
+  });
+
+  it('allows an authenticated user to read only their own counters', async () => {
+    await expect(service.getUserStats('owner-1', 'owner-1')).resolves.toEqual({
+      totalOrders: 3,
+      completedOrders: 1,
+    });
+    expect(prisma.appUser.findUnique).not.toHaveBeenCalled();
+    expect(repo.getUserStats).toHaveBeenCalledWith('owner-1');
+  });
+
+  it('allows an administrator to read another account counters', async () => {
+    prisma.appUser.findUnique.mockResolvedValue({ role: 'admin' });
+
+    await expect(service.getUserStats('target-1', 'admin-1')).resolves.toEqual({
+      totalOrders: 3,
+      completedOrders: 1,
+    });
+    expect(repo.getUserStats).toHaveBeenCalledWith('target-1');
+  });
+
+  it('denies a non-admin reading another account counters', async () => {
+    prisma.appUser.findUnique.mockResolvedValue({ role: 'user' });
+
+    await expect(service.getUserStats('target-1', 'user-1'))
+      .rejects.toMatchObject({
+        status: 403,
+        response: expect.objectContaining({ error: 'UNAUTHORIZED_ACTION' }),
+      });
+    expect(repo.getUserStats).not.toHaveBeenCalled();
+  });
+});

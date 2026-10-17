@@ -99,6 +99,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+`GET /orders/user-stats/:userId` requires a valid JWT. These private account metrics are available to the account owner and administrators only; the response is limited to total and completed order counts and contains no individual order or counterparty details.
+
 ## Development checks
 
 ```bash

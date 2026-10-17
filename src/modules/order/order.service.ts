@@ -17,6 +17,7 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ORDER_STATUS } from './order.constants';
+import { AppRole } from '../../common/interfaces/app-role.interface';
 import {
   ORDER_PARTY_CONTACT_SELECT,
   OrderPartyContact,
@@ -294,7 +295,21 @@ export class OrderService {
     }) as Promise<Order>;
   }
 
-  getUserStats(userId: string): Promise<UserStats> {
+  async getUserStats(userId: string, requesterId: string): Promise<UserStats> {
+    // Account-level order metrics are private. Owners can view their own
+    // counts; only administrators may inspect another account's counts.
+    if (userId !== requesterId) {
+      const requester = await this.prisma.appUser.findUnique({
+        where: { userId: requesterId },
+        select: { role: true },
+      });
+      if (!requester || requester.role !== AppRole.admin) {
+        throw new AppException(
+          ErrorCode.UNAUTHORIZED_ACTION,
+          'Only the account owner or an administrator can view these order statistics',
+        );
+      }
+    }
     return this.repo.getUserStats(userId);
   }
 
