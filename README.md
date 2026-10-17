@@ -99,6 +99,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+`POST /users/:id/setup` now applies profile updates, an optional payment method, and the account setup audit row in one database transaction. Repeated setup requests reuse an existing matching payment method instead of creating another one.
+
 ## Development checks
 
 ```bash
