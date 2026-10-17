@@ -85,17 +85,13 @@ export class UsersService {
       ...profileData
     } = dto;
 
-    const updatedUser: AppUser = (await this.repo.update(userId, {
-      ...(profileData as unknown as Record<string, unknown>),
-      pendingAccountInfo: false,
-    })) as AppUser;
-
     void bankName;
     void accountHolderName;
     void accountNumber;
 
+    let provider: Awaited<ReturnType<PrismaService['payment_provider']['findUnique']>> = null;
     if (providerId && accountIdentifier) {
-      const provider = await this.prisma.payment_provider.findUnique({
+      provider = await this.prisma.payment_provider.findUnique({
         where: { provider_id: providerId },
       });
 
@@ -115,19 +111,49 @@ export class UsersService {
         },
         accountIdentifier,
       );
+    }
 
-      await this.prisma.paymentMethod.create({
+    const updatedUser = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.appUser.update({
+        where: { userId },
         data: {
-          userId,
-          providerId,
-          type: provider.type,
-          accountIdentifier,
-          identificationNumber,
-          beneficiaryName,
-          description,
+          ...(profileData as unknown as Record<string, unknown>),
+          pendingAccountInfo: false,
         },
       });
-    }
+
+      if (provider && providerId && accountIdentifier) {
+        const existingMethod = await tx.paymentMethod.findFirst({
+          where: { userId, providerId, accountIdentifier },
+          select: { paymentId: true },
+        });
+        if (!existingMethod) {
+          await tx.paymentMethod.create({
+            data: {
+              userId,
+              providerId,
+              type: provider.type,
+              accountIdentifier,
+              identificationNumber,
+              beneficiaryName,
+              description,
+            },
+          });
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: AuditAction.USER_ACCOUNT_SETUP,
+          resourceType: 'User',
+          resourceId: userId,
+          result: AuditResult.SUCCESS,
+          metadata: { paymentMethodIncluded: Boolean(providerId && accountIdentifier) },
+        },
+      });
+      return user;
+    });
 
     const { access_token } = await Promise.resolve(
       this.authService.finalizeSetup(userId, updatedUser.publicKey),

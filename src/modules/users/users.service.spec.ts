@@ -22,15 +22,20 @@ describe('UsersService', () => {
   };
   let mockPrismaService: {
     waitlist: { findUnique: jest.Mock; deleteMany: jest.Mock };
+    payment_provider: { findUnique: jest.Mock };
     $transaction: jest.Mock;
   };
   let mockAuditLogService: {
     create: jest.Mock;
   };
   let txClient: {
-    paymentMethod: { deleteMany: jest.Mock };
+    paymentMethod: {
+      deleteMany: jest.Mock;
+      findFirst: jest.Mock;
+      create: jest.Mock;
+    };
     chatMessage: { updateMany: jest.Mock };
-    auditLog: { updateMany: jest.Mock };
+    auditLog: { updateMany: jest.Mock; create: jest.Mock };
     waitlist: { deleteMany: jest.Mock };
     appUser: { findUnique: jest.Mock; update: jest.Mock };
   };
@@ -48,15 +53,26 @@ describe('UsersService', () => {
     };
 
     txClient = {
-      paymentMethod: { deleteMany: jest.fn() },
+      paymentMethod: {
+        deleteMany: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ paymentId: 'payment-1' }),
+      },
       chatMessage: { updateMany: jest.fn() },
-      auditLog: { updateMany: jest.fn() },
+      auditLog: { updateMany: jest.fn(), create: jest.fn() },
       waitlist: { deleteMany: jest.fn() },
-      appUser: { findUnique: jest.fn(), update: jest.fn() },
+      appUser: {
+        findUnique: jest.fn(),
+        update: jest.fn().mockResolvedValue({
+          userId: 'user-1',
+          publicKey: 'G'.padEnd(56, 'A'),
+        }),
+      },
     };
 
     mockPrismaService = {
       waitlist: { findUnique: jest.fn(), deleteMany: jest.fn() },
+      payment_provider: { findUnique: jest.fn() },
       $transaction: jest.fn((cb: (tx: typeof txClient) => unknown) =>
         cb(txClient),
       ),
@@ -71,9 +87,15 @@ describe('UsersService', () => {
         UsersService,
         { provide: UsersRepository, useValue: repo },
         { provide: PrismaService, useValue: mockPrismaService },
-        { provide: AuthService, useValue: {} },
+        {
+          provide: AuthService,
+          useValue: { finalizeSetup: jest.fn().mockResolvedValue({ access_token: 'token' }) },
+        },
         { provide: FileStorageService, useValue: mockFileStorageService },
-        { provide: PaymentMethodValidatorService, useValue: {} },
+        {
+          provide: PaymentMethodValidatorService,
+          useValue: { validate: jest.fn() },
+        },
         { provide: AuditLogService, useValue: mockAuditLogService },
       ],
     }).compile();
@@ -90,6 +112,55 @@ describe('UsersService', () => {
 
     expect(args.select).toEqual(USER_PUBLIC_SELECT);
     expect(args.select).not.toHaveProperty('currentNonce');
+  });
+
+  describe('setupAccount transaction', () => {
+    const dto = {
+      alias: 'new-alias',
+      providerId: 'provider-1',
+      accountIdentifier: 'account-123',
+      beneficiaryName: 'Ada User',
+    };
+
+    beforeEach(() => {
+      mockPrismaService.payment_provider.findUnique.mockResolvedValue({
+        type: 'BANK',
+        country_code: 'US',
+        metadata: null,
+      });
+    });
+
+    it('commits profile, payment method, and audit writes in one transaction', async () => {
+      await expect(service.setupAccount('user-1', dto)).resolves.toEqual({
+        user: expect.objectContaining({ userId: 'user-1' }),
+        access_token: 'token',
+      });
+
+      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+      expect(txClient.appUser.update).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+        data: { alias: 'new-alias', pendingAccountInfo: false },
+      });
+      expect(txClient.paymentMethod.create).toHaveBeenCalledTimes(1);
+      expect(txClient.auditLog.create).toHaveBeenCalledTimes(1);
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it('avoids duplicate payment methods on a repeated setup request', async () => {
+      txClient.paymentMethod.findFirst.mockResolvedValue({ paymentId: 'existing' });
+
+      await service.setupAccount('user-1', dto);
+
+      expect(txClient.paymentMethod.create).not.toHaveBeenCalled();
+    });
+
+    it('propagates audit storage failures so the transaction rolls back', async () => {
+      txClient.auditLog.create.mockRejectedValue(new Error('audit unavailable'));
+
+      await expect(service.setupAccount('user-1', dto)).rejects.toThrow(
+        'audit unavailable',
+      );
+    });
   });
 
   it('updates the user when the authenticated user owns the resource', async () => {
