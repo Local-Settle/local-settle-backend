@@ -1,0 +1,30 @@
+components:
+  schemas:
+    ApiError:
+      type: object
+      required: [statusCode, error, message]
+      properties:
+        statusCode:
+          type: integer
+          example: 404
+        error:
+          type: string
+          description: Stable machine-readable code; see api-error-codes.json.
+          example: ORDER_NOT_FOUND
+        message:
+          type: string
+          description: Human-readable message. Clients should not parse it.
+          example: Order was not found
+  responses:
+    ApiError:
+      description: Request failed with a normalized API error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          examples:
+            orderNotFound:
+              value:
+                statusCode: 404
+                error: ORDER_NOT_FOUND
+                message: Order was not found
