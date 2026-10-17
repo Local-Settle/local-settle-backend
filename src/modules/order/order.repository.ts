@@ -29,6 +29,17 @@ export class OrderRepository extends BaseRepository {
     super(prisma.order, 'orderId');
   }
 
+  findActiveForOfferBuyer(offerId: string, buyerId: string) {
+    return this.prisma.order.findFirst({
+      where: {
+        offerId,
+        buyerId,
+        orderStatus: { in: [ORDER_STATUS.CREATED, ORDER_STATUS.LOCKED] },
+      },
+      select: { orderId: true },
+    });
+  }
+
   // Override create to atomically create order+escrow and mark the offer as executed.
   // Accepts an optional pre-generated orderId so the same UUID can be used as the
   // Trustless Work engagementId before any DB record is persisted.

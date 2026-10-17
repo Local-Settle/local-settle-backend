@@ -122,3 +122,5 @@ Never commit or log private keys, JWTs, webhook secrets, full bank details, or i
 ## License
 
 LocalSettle is licensed under the MIT License. See [LICENSE](LICENSE).
+
+Order creation rejects a buyer's second open order for the same offer. A partial unique database index on `(offer_id, buyer_id)` for `created` and `locked` orders also protects concurrent requests; once an order reaches a terminal state, the buyer can intentionally trade against that offer again.
