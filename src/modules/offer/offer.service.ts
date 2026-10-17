@@ -46,7 +46,9 @@ export class OfferService {
     if (q.status) where.status = q.status;
     if (q.type) where.type = q.type;
     if (q.assetCode) where.assetCode = q.assetCode;
-    return this.repo.search(where, p.skip, p.take);
+    return this.repo.search(where, p.skip, p.take).then((offers) =>
+      offers.map((offer) => this.maskPaymentMethods(offer)),
+    );
   }
 
   async get(id: string): Promise<OfferWithRelations> {
@@ -57,7 +59,24 @@ export class OfferService {
         `Offer ${id} not found`,
       );
     }
-    return item;
+    return this.maskPaymentMethods(item);
+  }
+
+  /** Offer discovery is public; never serialize payment account details here. */
+  private maskPaymentMethods(offer: OfferWithRelations): OfferWithRelations {
+    return {
+      ...offer,
+      payment_methods: offer.payment_methods.map((method) => ({
+        ...method,
+        accountIdentifier: this.maskIdentifier(method.accountIdentifier),
+        beneficiaryName: null,
+      })),
+    };
+  }
+
+  private maskIdentifier(value: string): string {
+    const visibleSuffix = value.slice(-4);
+    return `${'*'.repeat(Math.max(4, value.length - visibleSuffix.length))}${visibleSuffix}`;
   }
 
   async update(id: string, dto: UpdateOfferDto): Promise<Offer> {
