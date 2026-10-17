@@ -8,6 +8,7 @@ import { StellarService } from './stellar.service';
 import { StellarEventParserService } from './stellar-event-parser.service';
 import { StellarListenerService } from './stellar-listener.service';
 import { StellarController } from './stellar.controller';
+import { SetupCompleteGuard } from '../auth/setup-complete.guard';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { StellarController } from './stellar.controller';
     StellarService,
     StellarEventParserService,
     StellarListenerService,
+    SetupCompleteGuard,
   ],
   controllers: [StellarController],
   exports: [StellarService, StellarEventParserService, StellarListenerService],

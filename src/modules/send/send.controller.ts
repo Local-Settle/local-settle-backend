@@ -9,12 +9,13 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SetupCompleteGuard } from '../auth/setup-complete.guard';
 import { SendService } from './send.service';
 import { PrepareSendDto } from './dto/prepare-send.dto';
 import { SubmitSendDto } from './dto/submit-send.dto';
 import { AppException, ErrorCode } from '../../common/errors';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SetupCompleteGuard)
 @Controller('send')
 export class SendController {
   constructor(private readonly service: SendService) {}

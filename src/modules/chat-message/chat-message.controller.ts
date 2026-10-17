@@ -12,6 +12,7 @@ import { PaginationDto } from '../../common/pagination.dto';
 import { CreateChatMessageDto } from './dto/create-chat-message.dto';
 import { ChatMessageService } from './chat-message.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SetupCompleteGuard } from '../auth/setup-complete.guard';
 import { ResourceOwnerGuard } from '../../common/guards/resource-owner.guard';
 import { ResourceOwner } from '../../common/decorators/resource-owner.decorator';
 import { ResourceType } from '../../common/interfaces/resource-owner.interface';
@@ -31,14 +32,14 @@ export class ChatMessageController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard, ResourceOwnerGuard)
   @ResourceOwner(ResourceType.CHAT_MESSAGE)
   get(@Param('id') id: string) {
     return this.service.get(id);
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard, ResourceOwnerGuard)
   @ResourceOwner(ResourceType.CHAT_MESSAGE)
   remove(@Param('id') id: string) {
     return this.service.remove(id);

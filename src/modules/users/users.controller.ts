@@ -24,6 +24,7 @@ import { ValidateAliasDto } from './dto/validate-alias.dto';
 import { UsersService } from './users.service';
 import { SetupAccountDto } from './dto/setup-account.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SetupCompleteGuard } from '../auth/setup-complete.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import type { UploadFileInput } from '../file-storage/file-storage.service';
@@ -84,7 +85,7 @@ export class UsersController {
     return this.service.get(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard)
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -94,7 +95,7 @@ export class UsersController {
     return this.service.update(id, dto, req.user?.userId ?? req.user?.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard)
   @Patch(':id/profile-picture')
   @UseInterceptors(
     FileInterceptor('profileImage', { limits: { fileSize: 5 * 1024 * 1024 } }),
@@ -149,13 +150,13 @@ export class UsersController {
     return this.service.uploadProfilePicture(id, file, parsedSnapshot);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard)
   @Get(':id/data')
   exportData(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.exportUserData(id, req.user?.userId ?? req.user?.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard)
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.remove(id, req.user?.userId ?? req.user?.id);

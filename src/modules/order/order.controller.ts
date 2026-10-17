@@ -15,6 +15,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderService } from './order.service';
 import type { OrderFilter } from './order.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SetupCompleteGuard } from '../auth/setup-complete.guard';
 import { KycVerifiedGuard } from '../../common/kyc-verified.guard';
 import { ResourceOwnerGuard } from '../../common/guards/resource-owner.guard';
 import { ResourceOwner } from '../../common/decorators/resource-owner.decorator';
@@ -27,7 +28,7 @@ export class OrderController {
   constructor(private readonly service: OrderService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, KycVerifiedGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard, KycVerifiedGuard)
   create(@Body() dto: CreateOrderDto, @CurrentUser() user: { userId: string }) {
     if (dto.buyerId !== user.userId && dto.sellerId !== user.userId) {
       throw new AppException(
@@ -52,7 +53,7 @@ export class OrderController {
   // cancelling an order the user is already in does not move new funds,
   // so it must not be blocked behind KYC completion.
   @Post(':id/cancel')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard)
   cancel(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; publicKey: string },
@@ -61,21 +62,31 @@ export class OrderController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard, ResourceOwnerGuard)
   @ResourceOwner(ResourceType.ORDER)
   get(@Param('id') id: string) {
     return this.service.get(id);
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, KycVerifiedGuard, ResourceOwnerGuard)
+  @UseGuards(
+    JwtAuthGuard,
+    SetupCompleteGuard,
+    KycVerifiedGuard,
+    ResourceOwnerGuard,
+  )
   @ResourceOwner(ResourceType.ORDER)
   update(@Param('id') id: string, @Body() dto: UpdateOrderDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, KycVerifiedGuard, ResourceOwnerGuard)
+  @UseGuards(
+    JwtAuthGuard,
+    SetupCompleteGuard,
+    KycVerifiedGuard,
+    ResourceOwnerGuard,
+  )
   @ResourceOwner(ResourceType.ORDER)
   remove(@Param('id') id: string) {
     return this.service.remove(id);

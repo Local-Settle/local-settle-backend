@@ -18,6 +18,8 @@ LocalSettle is a peer-to-peer marketplace that connects local payment methods wi
 
 `POST /auth/challenge` creates a short-lived random challenge for a public key. The connected wallet signs it locally. `POST /auth/login` verifies the signature, consumes the challenge once, and returns a session token. The API verifies public-key ownership; it does not need the user's secret key for this flow.
 
+The login token is temporary and can be used to validate an alias and complete `POST /users/:id/setup`. That bootstrap route remains available before setup is complete. The setup response returns a final token with the `setupComplete: true` claim; profile, payment, trading, chat, and wallet routes that declare `SetupCompleteGuard` require that final token.
+
 ### Direct USDC payment
 
 The authenticated client calls `GET /send/resolve` for a Stellar address or LocalSettle alias, then `POST /send/prepare`. The API reads recipient account information, builds an unsigned Stellar transaction XDR, and returns it for review. The client asks the user's wallet to sign. `POST /send/submit` broadcasts the signed XDR through Horizon and returns the transaction result.

@@ -8,6 +8,7 @@ import { getJwtSecret } from '../../config/jwt.config';
 interface JwtPayload {
   sub: string;
   publicKey: string;
+  setupComplete?: boolean;
 }
 
 @Injectable()
@@ -22,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(
     payload: JwtPayload,
-  ): Promise<{ userId: string; publicKey: string }> {
+  ): Promise<{ userId: string; publicKey: string; setupComplete?: boolean }> {
     let userId = payload.sub;
 
     // Fallback for legacy tokens where sub was the wallet address
@@ -37,6 +38,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       }
     }
 
-    return { userId, publicKey: payload.publicKey };
+    return {
+      userId,
+      publicKey: payload.publicKey,
+      setupComplete: payload.setupComplete,
+    };
   }
 }

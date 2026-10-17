@@ -17,6 +17,7 @@ import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
 import { OfferService, type OfferFilter } from './offer.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SetupCompleteGuard } from '../auth/setup-complete.guard';
 import { KycVerifiedGuard } from '../../common/kyc-verified.guard';
 
 @Controller('offers')
@@ -24,7 +25,7 @@ export class OfferController {
   constructor(private readonly service: OfferService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, KycVerifiedGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard, KycVerifiedGuard)
   create(
     @Body() dto: CreateOfferDto,
     @Req() req: Request & { user: { userId: string } },
@@ -49,13 +50,13 @@ export class OfferController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, KycVerifiedGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard, KycVerifiedGuard)
   update(@Param('id') id: string, @Body() dto: UpdateOfferDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, KycVerifiedGuard)
+  @UseGuards(JwtAuthGuard, SetupCompleteGuard, KycVerifiedGuard)
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
