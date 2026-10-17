@@ -43,6 +43,7 @@ import {
 } from '../file-storage/file-storage.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
+import { createHash } from 'crypto';
 
 @Injectable()
 export class EscrowService {
@@ -509,6 +510,24 @@ export class EscrowService {
 
   async syncTransaction(dto: SyncEscrowDto) {
     const escrow = await this.getOrFail(dto.escrowId);
+    const transactionHash = createHash('sha256')
+      .update(dto.signedXdr)
+      .digest('hex');
+
+    if (escrow.lastSyncTxHash === transactionHash) {
+      if (escrow.lastSyncAction !== dto.action) {
+        throw new AppException(
+          ErrorCode.INVALID_ORDER_STATUS,
+          'This signed transaction was already used for a different escrow action.',
+        );
+      }
+      return {
+        escrowId: dto.escrowId,
+        status: 'SUCCESS',
+        contractId: escrow.contractId,
+        newEscrowStatus: escrow.escrowStatus,
+      };
+    }
 
     this.validateStatusTransition(escrow.escrowStatus, dto.action);
 
@@ -521,6 +540,8 @@ export class EscrowService {
     }
 
     const updateData: Record<string, unknown> = {};
+    updateData.lastSyncTxHash = transactionHash;
+    updateData.lastSyncAction = dto.action;
     switch (dto.action) {
       case EscrowAction.INITIALIZE:
         updateData.escrowStatus = 'initialized';

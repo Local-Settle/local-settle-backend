@@ -77,6 +77,8 @@ model EscrowOnChain {
   orderId       String        @unique @map("order_id") @db.Uuid
   txHashLock    String?       @map("tx_hash_lock")
   txHashRelease String?       @map("tx_hash_release")
+  lastSyncTxHash String?      @unique @map("last_sync_tx_hash")
+  lastSyncAction String?      @map("last_sync_action")
   amount        Decimal?      @map("amount") @db.Decimal(20, 7)
   buyerAddress  String?       @map("buyer_address")
   contractId    String?       @unique @map("contract_id")
