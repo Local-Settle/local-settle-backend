@@ -31,6 +31,10 @@ describe('AuthService', () => {
     appUser: {
       upsert: jest.fn(),
     },
+    authSession: {
+      create: jest.fn().mockResolvedValue(undefined),
+      updateMany: jest.fn(),
+    },
   };
 
   const jwtMock = { sign: jest.fn().mockReturnValue('signed-jwt') };
@@ -92,6 +96,7 @@ describe('AuthService', () => {
     prismaMock.authChallenge.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.authChallenge.deleteMany.mockResolvedValue({ count: 0 });
     prismaMock.appUser.upsert.mockResolvedValue(provisionedUser);
+    prismaMock.authSession.create.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -209,9 +214,18 @@ describe('AuthService', () => {
         create: { publicKey },
         update: {},
       });
-      expect(jwtMock.sign).toHaveBeenCalledWith({
-        sub: provisionedUser.userId,
-        publicKey,
+      expect(jwtMock.sign).toHaveBeenCalledWith(
+        {
+          sub: provisionedUser.userId,
+          publicKey,
+        },
+        { jwtid: expect.any(String) as string },
+      );
+      expect(prismaMock.authSession.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: provisionedUser.userId,
+          expiresAt: expect.any(Date) as Date,
+        }),
       });
       expect(prismaMock.authChallenge.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -363,14 +377,45 @@ describe('AuthService', () => {
   });
 
   describe('finalizeSetup', () => {
-    it('signs a definitive JWT with setupComplete', () => {
-      const result = service.finalizeSetup('user-1', publicKey);
+    it('signs a definitive JWT with setupComplete and creates a session', async () => {
+      const result = await service.finalizeSetup('user-1', publicKey);
       expect(result).toEqual({ access_token: 'signed-jwt' });
-      expect(jwtMock.sign).toHaveBeenCalledWith({
-        sub: 'user-1',
-        publicKey,
-        setupComplete: true,
+      expect(jwtMock.sign).toHaveBeenCalledWith(
+        {
+          sub: 'user-1',
+          publicKey,
+          setupComplete: true,
+        },
+        { jwtid: expect.any(String) as string },
+      );
+      expect(prismaMock.authSession.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          sessionId: expect.any(String) as string,
+          userId: 'user-1',
+          expiresAt: expect.any(Date) as Date,
+        }),
       });
+    });
+  });
+
+  describe('revokeSession', () => {
+    it('revokes only the requested session belonging to the user', async () => {
+      prismaMock.authSession.updateMany.mockResolvedValue({ count: 1 });
+
+      await expect(
+        service.revokeSession('user-1', 'session-1'),
+      ).resolves.toEqual({ revoked: true });
+      expect(prismaMock.authSession.updateMany).toHaveBeenCalledWith({
+        where: { sessionId: 'session-1', userId: 'user-1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) as Date },
+      });
+    });
+
+    it('requires a session identifier for revocation', async () => {
+      await expect(service.revokeSession('user-1')).rejects.toThrow(
+        'This token does not support session revocation; sign in again',
+      );
+      expect(prismaMock.authSession.updateMany).not.toHaveBeenCalled();
     });
   });
 

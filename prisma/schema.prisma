@@ -33,6 +33,7 @@ model AppUser {
   sellOrders           Order[]         @relation("SellerOrders")
   paymentMethods       PaymentMethod[]
   auditLogs            AuditLog[]
+  authSessions         AuthSession[]
 
   @@map("app_user")
 }
@@ -228,6 +229,19 @@ model AuthChallenge {
   @@index([expiresAt])
   @@map("auth_challenge")
 }
+
+model AuthSession {
+  sessionId String    @id @map("session_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      AppUser   @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, expiresAt], map: "auth_session_user_id_expires_at_idx")
+  @@map("auth_session")
+}
+
 model Waitlist {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email     String   @unique
