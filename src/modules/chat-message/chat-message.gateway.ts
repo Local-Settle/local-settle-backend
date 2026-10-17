@@ -33,6 +33,12 @@ interface AuthenticatedSocketData {
 
 interface ChatServerEvents {
   [ChatEvent.MESSAGE_CREATED]: (message: CreatedChatMessage) => void;
+  [ChatEvent.MESSAGE_RECEIPT]: (receipt: {
+    orderId: string;
+    messageIds: string[];
+    state: 'delivered' | 'read';
+    updatedAt: Date;
+  }) => void;
   [ChatEvent.CHAT_ERROR]: (error: ChatError) => void;
   [ChatEvent.USER_JOINED]: (event: { orderId: string; userId: string }) => void;
   [ChatEvent.USER_LEFT]: (event: { orderId: string; userId: string }) => void;
@@ -128,6 +134,44 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
       });
     }
 
+    const delivered = await this.chatMessages.markDelivered(
+      orderId,
+      client.data.userId,
+    );
+    if (delivered) this.server.to(room).emit(ChatEvent.MESSAGE_RECEIPT, delivered);
+
+    return { ok: true };
+  }
+
+  @SubscribeMessage(ChatEvent.MARK_READ)
+  async markRead(
+    @ConnectedSocket() client: ChatSocket,
+    @MessageBody() body: OrderRoomDto,
+  ): Promise<ChatAck> {
+    const orderId = body?.orderId;
+    if (!this.isValidOrderId(orderId)) {
+      return this.fail(
+        client,
+        ChatErrorCode.INVALID_ORDER_ID,
+        'Invalid order ID.',
+        orderId,
+      );
+    }
+    const accessError = await this.getAccessError(client, orderId);
+    if (accessError) return this.failWith(client, accessError);
+
+    const room = this.roomFor(orderId);
+    if (!client.rooms.has(room)) {
+      return this.fail(
+        client,
+        ChatErrorCode.NOT_IN_ORDER_ROOM,
+        'Join the order room before marking messages as read.',
+        orderId,
+      );
+    }
+
+    const receipt = await this.chatMessages.markRead(orderId, client.data.userId);
+    if (receipt) this.server.to(room).emit(ChatEvent.MESSAGE_RECEIPT, receipt);
     return { ok: true };
   }
 

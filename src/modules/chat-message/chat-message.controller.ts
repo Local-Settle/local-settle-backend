@@ -6,8 +6,10 @@ import {
   Param,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { PaginationDto } from '../../common/pagination.dto';
 import { CreateChatMessageDto } from './dto/create-chat-message.dto';
 import { ChatMessageService } from './chat-message.service';
@@ -26,8 +28,13 @@ export class ChatMessageController {
   }
 
   @Get()
-  list(@Query() p: PaginationDto, @Query('orderId') orderId?: string) {
-    return this.service.list(p, orderId);
+  @UseGuards(JwtAuthGuard)
+  list(
+    @Query() p: PaginationDto,
+    @Req() req: Request & { user: { userId: string } },
+    @Query('orderId') orderId?: string,
+  ) {
+    return this.service.list(p, req.user.userId, orderId);
   }
 
   @Get(':id')

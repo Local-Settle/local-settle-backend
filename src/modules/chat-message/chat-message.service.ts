@@ -15,6 +15,14 @@ export class ChatMessageService {
     ) as Promise<ChatMessage>;
   }
 
+  markDelivered(orderId: string, recipientId: string) {
+    return this.repo.markDelivered(orderId, recipientId);
+  }
+
+  markRead(orderId: string, readerId: string) {
+    return this.repo.markRead(orderId, readerId);
+  }
+
   async canAccessOrder(
     orderId: string,
     userId: string,
@@ -24,11 +32,25 @@ export class ChatMessageService {
     return order.buyerId === userId || order.sellerId === userId;
   }
 
-  list(p: PaginationDto, orderId?: string): Promise<ChatMessage[]> {
-    if (orderId) return this.repo.findByOrder(orderId, p.skip, p.take ?? 50);
+  async list(
+    p: PaginationDto,
+    userId: string,
+    orderId?: string,
+  ): Promise<ChatMessage[]> {
+    if (orderId) {
+      const canAccess = await this.canAccessOrder(orderId, userId);
+      if (!canAccess) {
+        throw new AppException(
+          ErrorCode.UNAUTHORIZED_ACTION,
+          'Only order participants can view its chat.',
+        );
+      }
+      return this.repo.findByOrder(orderId, p.skip, p.take ?? 50);
+    }
     return this.repo.findMany({
       skip: p.skip,
       take: p.take ?? 50,
+      where: { order: { OR: [{ buyerId: userId }, { sellerId: userId }] } },
       orderBy: { timestamp: 'desc' },
     }) as Promise<ChatMessage[]>;
   }
