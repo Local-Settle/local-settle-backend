@@ -122,3 +122,7 @@ Never commit or log private keys, JWTs, webhook secrets, full bank details, or i
 ## License
 
 LocalSettle is licensed under the MIT License. See [LICENSE](LICENSE).
+
+### Public statistics privacy and freshness
+
+The public statistics response contains aggregates only and does not return account, wallet, order, or transaction identifiers. Daily waitlist cohorts smaller than five are suppressed. Statistics are cached in process for up to 30 seconds (at most 20 window entries); callers that perform a statistics-affecting write can call `StatsService.invalidateCache()` to clear it. Multi-instance deployments may briefly serve different cached values until each instance refreshes.
