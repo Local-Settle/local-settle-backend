@@ -25,4 +25,11 @@ export class MockFileStorageService extends FileStorageService {
       url: `https://mock-storage.ikash.local/${key}`,
     });
   }
+
+  getSignedDownloadUrlFromUrl(url: string): Promise<string> {
+    if (!url.startsWith('https://mock-storage.ikash.local/evidence/')) {
+      return Promise.reject(new Error('Evidence URL is outside mock storage'));
+    }
+    return Promise.resolve(`${url}?expiresIn=300`);
+  }
 }

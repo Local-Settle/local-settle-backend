@@ -63,6 +63,8 @@ const mockConfigService = {
 
 const mockChatMessageService = {
   create: jest.fn(),
+  createFromChat: jest.fn(),
+  getSignedAttachmentsForOrder: jest.fn().mockResolvedValue([]),
   canAccessOrder: jest.fn(),
 };
 
@@ -407,7 +409,7 @@ describe('ChatMessageGateway', () => {
 
     it('persists the message, broadcasts message-created, and returns ok:true', async () => {
       mockChatMessageService.canAccessOrder.mockResolvedValue(true);
-      mockChatMessageService.create.mockResolvedValue(fakeMessage);
+      mockChatMessageService.createFromChat.mockResolvedValue(fakeMessage);
       const client = makeClient();
       client.rooms.add(`order:${VALID_ORDER_ID}`);
 
@@ -418,10 +420,11 @@ describe('ChatMessageGateway', () => {
 
       expect(result.ok).toBe(true);
       expect(result.data).toMatchObject({ content: 'Hello!' });
-      expect(mockChatMessageService.create).toHaveBeenCalledWith({
+      expect(mockChatMessageService.createFromChat).toHaveBeenCalledWith({
         orderId: VALID_ORDER_ID,
         senderId: 'user-1',
         content: 'Hello!',
+        attachmentEvidenceIds: [],
       });
       expect(serverEmitToMock).toHaveBeenCalledWith(
         ChatEvent.MESSAGE_CREATED,
@@ -431,7 +434,7 @@ describe('ChatMessageGateway', () => {
 
     it('includes clientMessageId in the ack and broadcast', async () => {
       mockChatMessageService.canAccessOrder.mockResolvedValue(true);
-      mockChatMessageService.create.mockResolvedValue(fakeMessage);
+      mockChatMessageService.createFromChat.mockResolvedValue(fakeMessage);
       const client = makeClient();
       client.rooms.add(`order:${VALID_ORDER_ID}`);
 
@@ -525,7 +528,7 @@ describe('ChatMessageGateway', () => {
 
     it('returns ok:false with MESSAGE_PERSISTENCE_FAILED when create() throws', async () => {
       mockChatMessageService.canAccessOrder.mockResolvedValue(true);
-      mockChatMessageService.create.mockRejectedValue(
+      mockChatMessageService.createFromChat.mockRejectedValue(
         new Error('DB connection lost'),
       );
       const client = makeClient();

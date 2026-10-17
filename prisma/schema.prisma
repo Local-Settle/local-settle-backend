@@ -83,6 +83,9 @@ model EscrowOnChain {
   escrowStatus  escrow_status @default(pending) @map("escrow_status")
   sellerAddress String?       @map("seller_address")
   evidenceUrl   String?       @map("evidence_url")
+  evidenceFileName String?    @map("evidence_file_name")
+  evidenceContentType String? @map("evidence_content_type")
+  evidenceSize Int?           @map("evidence_size")
   order         Order         @relation(fields: [orderId], references: [orderId], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("escrowonchain")
@@ -93,6 +96,7 @@ model ChatMessage {
   orderId   String   @map("order_id") @db.Uuid
   senderId  String   @map("sender_id") @db.Uuid
   content   String
+  attachmentRefs Json?  @map("attachment_refs")
   timestamp DateTime @default(now()) @db.Timestamptz(6)
   order     Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade, onUpdate: NoAction)
   sender    AppUser  @relation(fields: [senderId], references: [userId], onUpdate: NoAction)

@@ -38,7 +38,12 @@ interface ChatServerEvents {
   [ChatEvent.USER_LEFT]: (event: { orderId: string; userId: string }) => void;
 }
 
-type CreatedChatMessage = ChatMessage & { clientMessageId?: string };
+type CreatedChatMessage = ChatMessage & {
+  clientMessageId?: string;
+  attachments?: Awaited<
+    ReturnType<ChatMessageService['getSignedAttachmentsForOrder']>
+  >;
+};
 
 type ChatSocket = Socket<
   Record<string, never>,
@@ -174,7 +179,10 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
 
     const content =
       typeof body?.content === 'string' ? body.content.trim() : '';
-    if (!content) {
+    const evidenceIds = Array.isArray(body?.attachmentEvidenceIds)
+      ? body.attachmentEvidenceIds
+      : [];
+    if (!content && evidenceIds.length === 0) {
       return this.fail(
         client,
         ChatErrorCode.EMPTY_MESSAGE,
@@ -205,14 +213,25 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
     if (accessError) return this.failWith(client, accessError);
 
     try {
-      const message = await this.chatMessages.create({
+      const message = await this.chatMessages.createFromChat({
         orderId,
         senderId: client.data.userId,
         content,
+        attachmentEvidenceIds: evidenceIds,
       });
-      const createdMessage: CreatedChatMessage = {
+      const attachments = await this.chatMessages.getSignedAttachmentsForOrder(
+        orderId,
+        client.data.userId,
+        evidenceIds,
+      );
+      const publicMessage = {
         ...message,
+      } as ChatMessage & { attachmentRefs?: unknown };
+      delete publicMessage.attachmentRefs;
+      const createdMessage: CreatedChatMessage = {
+        ...publicMessage,
         clientMessageId: body.clientMessageId,
+        attachments,
       };
       this.server.to(room).emit(ChatEvent.MESSAGE_CREATED, createdMessage);
       return { ok: true, data: createdMessage };
