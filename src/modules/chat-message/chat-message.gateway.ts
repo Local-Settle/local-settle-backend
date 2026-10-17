@@ -106,6 +106,9 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
     @ConnectedSocket() client: ChatSocket,
     @MessageBody() body: OrderRoomDto,
   ): Promise<ChatAck> {
+    if (!(await this.verifyLiveSession(client))) {
+      return this.fail(client, ChatErrorCode.INVALID_JWT, 'A valid access token is required.');
+    }
     const orderId = body?.orderId;
     if (!this.isValidOrderId(orderId)) {
       return this.fail(
@@ -136,6 +139,9 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
     @ConnectedSocket() client: ChatSocket,
     @MessageBody() body: OrderRoomDto,
   ): Promise<ChatAck> {
+    if (!(await this.verifyLiveSession(client))) {
+      return this.fail(client, ChatErrorCode.INVALID_JWT, 'A valid access token is required.');
+    }
     const orderId = body?.orderId;
     if (!this.isValidOrderId(orderId)) {
       return this.fail(
@@ -162,6 +168,9 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
     @ConnectedSocket() client: ChatSocket,
     @MessageBody() body: SendMessageDto,
   ): Promise<ChatAck<CreatedChatMessage>> {
+    if (!(await this.verifyLiveSession(client))) {
+      return this.fail(client, ChatErrorCode.INVALID_JWT, 'A valid access token is required.');
+    }
     const orderId = body?.orderId;
     if (!this.isValidOrderId(orderId)) {
       return this.fail(
@@ -294,6 +303,17 @@ export class ChatMessageGateway implements OnGatewayInit, OnGatewayConnection {
       const error = new Error(details.message) as Error & { data: ChatError };
       error.data = details;
       throw error;
+    }
+  }
+
+  private async verifyLiveSession(client: ChatSocket): Promise<boolean> {
+    const token = this.extractToken(client);
+    if (!token) return false;
+    try {
+      const payload = await this.jwtService.verifyAsync<ChatJwtPayload>(token);
+      return Boolean(payload.sub && payload.sub === client.data.userId);
+    } catch {
+      return false;
     }
   }
 
