@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { validateEscrowStellarConfig } from './stellar-config.validation';
 
 export const CRITICAL_ENV_VARS = [
   'DATABASE_URL',
@@ -31,6 +32,7 @@ export class EnvValidationService implements OnModuleInit {
       return;
     }
     this.validateCriticalEnvs();
+    this.validateEscrowConfiguration();
   }
 
   validateCriticalEnvs(requiredKeys: readonly string[] = CRITICAL_ENV_VARS) {
@@ -48,5 +50,16 @@ export class EnvValidationService implements OnModuleInit {
       this.logger.error(errorMsg);
       throw new Error(errorMsg);
     }
+  }
+
+  validateEscrowConfiguration(): void {
+    validateEscrowStellarConfig({
+      network: this.configService.get<string>('STELLAR_NETWORK'),
+      treasuryAddress: this.configService.get<string>(
+        'IKASH_TREASURY_ADDRESS',
+      ),
+      supportAddress: this.configService.get<string>('IKASH_SUPPORT_ADDRESS'),
+      deployerSecret: this.configService.get<string>('IKASH_DEPLOYER_SECRET'),
+    });
   }
 }
