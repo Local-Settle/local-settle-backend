@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PaginationDto } from '../../common/pagination.dto';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
@@ -60,7 +60,16 @@ export class OfferService {
     return item;
   }
 
-  async update(id: string, dto: UpdateOfferDto): Promise<Offer> {
+  async update(
+    id: string,
+    dto: UpdateOfferDto,
+    actorId: string,
+  ): Promise<Offer> {
+    const current = await this.repo.findById(id);
+    if (!current) throw new NotFoundException('Offer not found');
+    if (current.creatorId !== actorId && (await this.repo.getUserRole(actorId)) !== 'admin') {
+      throw new ForbiddenException('Only the offer creator or an admin can update it');
+    }
     const updated = (await this.repo.update(
       id,
       dto as unknown as Record<string, unknown>,
@@ -77,7 +86,12 @@ export class OfferService {
     return updated;
   }
 
-  async remove(id: string): Promise<Offer> {
+  async remove(id: string, actorId: string): Promise<Offer> {
+    const current = await this.repo.findById(id);
+    if (!current) throw new NotFoundException('Offer not found');
+    if (current.creatorId !== actorId && (await this.repo.getUserRole(actorId)) !== 'admin') {
+      throw new ForbiddenException('Only the offer creator or an admin can delete it');
+    }
     const removed = (await this.repo.delete(id)) as Offer;
 
     await this.auditLogService.create({

@@ -50,13 +50,20 @@ export class OfferController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, KycVerifiedGuard)
-  update(@Param('id') id: string, @Body() dto: UpdateOfferDto) {
-    return this.service.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateOfferDto,
+    @Req() req: Request & { user: { userId: string } },
+  ) {
+    return this.service.update(id, dto, req.user.userId);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, KycVerifiedGuard)
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(
+    @Param('id') id: string,
+    @Req() req: Request & { user: { userId: string } },
+  ) {
+    return this.service.remove(id, req.user.userId);
   }
 }
