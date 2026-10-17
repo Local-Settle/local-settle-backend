@@ -14,6 +14,12 @@ export type OfferFilter = {
   status?: offer_status;
   type?: offer_type;
   assetCode?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  minAmount?: string;
+  maxAmount?: string;
+  sortBy?: 'price' | 'createdAt' | 'offerId';
+  sortOrder?: 'asc' | 'desc';
 };
 
 @Injectable()
@@ -46,7 +52,21 @@ export class OfferService {
     if (q.status) where.status = q.status;
     if (q.type) where.type = q.type;
     if (q.assetCode) where.assetCode = q.assetCode;
-    return this.repo.search(where, p.skip, p.take);
+    if (q.minPrice !== undefined || q.maxPrice !== undefined) {
+      where.price = {
+        ...(q.minPrice !== undefined ? { gte: q.minPrice } : {}),
+        ...(q.maxPrice !== undefined ? { lte: q.maxPrice } : {}),
+      };
+    }
+    if (q.minAmount !== undefined || q.maxAmount !== undefined) {
+      where.AND = [
+        ...(q.minAmount !== undefined ? [{ maxAmount: { gte: q.minAmount } }] : []),
+        ...(q.maxAmount !== undefined ? [{ minAmount: { lte: q.maxAmount } }] : []),
+      ];
+    }
+    const sortBy = q.sortBy === 'price' || q.sortBy === 'createdAt' ? q.sortBy : 'offerId';
+    const sortOrder = q.sortOrder === 'asc' ? 'asc' : 'desc';
+    return this.repo.search(where, p.skip, p.take, sortBy, sortOrder);
   }
 
   async get(id: string): Promise<OfferWithRelations> {
