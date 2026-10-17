@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../common/base.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -28,17 +28,22 @@ export class OfferRepository extends BaseRepository {
       {};
 
     if (paymentMethodIds && paymentMethodIds.length > 0) {
+      const creatorId = offerData.creatorId as string;
+      const uniqueIds = [...new Set(paymentMethodIds)];
       const v2Methods = await this.prisma.paymentMethod.findMany({
-        where: { paymentId: { in: paymentMethodIds } },
+        where: {
+          paymentId: { in: uniqueIds },
+          userId: creatorId,
+          isActive: true,
+        },
         select: { paymentId: true },
       });
-      if (v2Methods.length > 0) {
-        connectPaymentMethods.connect = v2Methods.map(
-          (m: { paymentId: string }) => ({
-            paymentId: m.paymentId,
-          }),
-        );
+      if (v2Methods.length !== uniqueIds.length) {
+        throw new BadRequestException('Payment methods must be active and owned by the offer creator');
       }
+      connectPaymentMethods.connect = v2Methods.map(
+        (m: { paymentId: string }) => ({ paymentId: m.paymentId }),
+      );
     }
 
     return this.prisma.offer.create({
