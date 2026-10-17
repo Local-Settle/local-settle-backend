@@ -9,8 +9,6 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import * as crypto from 'crypto';
-import { Throttle } from '@nestjs/throttler';
-import { rateLimitConfig } from '../../config/rate-limit.config';
 import { rateLimitConfig } from '../../config/rate-limit.config';
 import { AuthService } from './auth.service';
 import { AuthRateLimitGuard } from './auth-rate-limit.guard';
@@ -69,7 +67,6 @@ export class AuthController {
    * context (IP, user agent) through for audit logging.
    */
   @Post('login')
-  @Throttle({ default: rateLimitConfig.auth })
   login(@Body() dto: LoginDto, @Req() req: Request) {
     const ctx = {
       ipAddress: req.ip,
