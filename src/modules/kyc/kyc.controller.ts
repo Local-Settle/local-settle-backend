@@ -47,7 +47,7 @@ export class KycController {
       throw new AppException(ErrorCode.MISSING_USER_ID, 'User ID is required');
     }
     const user = await this.prisma.appUser.findUnique({
-      where: { userId },
+      where: { userId, deletedAt: null },
       select: { kycStatus: true, kycUpdatedAt: true },
     });
     if (!user) {

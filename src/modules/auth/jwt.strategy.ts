@@ -28,7 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Fallback for legacy tokens where sub was the wallet address
     if (userId.startsWith('G') && userId.length === 56) {
       const user = await this.prisma.appUser.findUnique({
-        where: { publicKey: userId },
+        where: { publicKey: userId, deletedAt: null },
       });
       if (user) {
         userId = user.userId;

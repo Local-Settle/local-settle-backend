@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BaseRepository } from '../../common/base.repository';
 import { AppUser } from '@prisma/client';
+import { ForbiddenException } from '@nestjs/common';
 
 @Injectable()
 export class UsersRepository extends BaseRepository {
@@ -12,7 +13,7 @@ export class UsersRepository extends BaseRepository {
   // ✅ ESTE método existe SOLO aquí, por eso el service debe inyectar UsersRepository
   findByPublicKey(publicKey: string): Promise<AppUser | null> {
     return this.prisma.appUser.findUnique({
-      where: { publicKey },
+      where: { publicKey, deletedAt: null },
       include: {
         paymentMethods: {
           include: {
@@ -24,12 +25,19 @@ export class UsersRepository extends BaseRepository {
   }
 
   findByAlias(alias: string): Promise<AppUser | null> {
-    return this.prisma.appUser.findUnique({ where: { alias } });
+    return this.prisma.appUser.findFirst({ where: { alias, deletedAt: null } });
   }
 
   async findOrCreateByPublicKey(publicKey: string): Promise<AppUser> {
     const existing = await this.findByPublicKey(publicKey);
     if (existing) return existing;
+    const deleted = await this.prisma.appUser.findUnique({
+      where: { publicKey },
+      select: { deletedAt: true },
+    });
+    if (deleted?.deletedAt) {
+      throw new ForbiddenException('This account is no longer available.');
+    }
     return this.create({
       publicKey,
       pendingAccountInfo: true,
@@ -37,6 +45,7 @@ export class UsersRepository extends BaseRepository {
   }
 
   async isAliasAvailable(alias: string): Promise<boolean> {
+    // Deleted aliases remain reserved because the database enforces uniqueness.
     const found = await this.prisma.appUser.findUnique({ where: { alias } });
     return found === null;
   }
