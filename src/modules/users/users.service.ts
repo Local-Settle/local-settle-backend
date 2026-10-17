@@ -17,6 +17,7 @@ import { PaymentMethodValidatorService } from '../payment-methods/payment-method
 import { USER_PUBLIC_SELECT, PublicUser } from '../../common/prisma-selects';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
+import { normalizeAlias } from './alias-normalization';
 
 export interface AliasAvailability {
   available: boolean;
@@ -85,8 +86,12 @@ export class UsersService {
       ...profileData
     } = dto;
 
+    const accountData = profileData as unknown as Record<string, unknown>;
+    if (typeof accountData.alias === 'string') {
+      accountData.aliasNormalized = normalizeAlias(accountData.alias);
+    }
     const updatedUser: AppUser = (await this.repo.update(userId, {
-      ...(profileData as unknown as Record<string, unknown>),
+      ...accountData,
       pendingAccountInfo: false,
     })) as AppUser;
 
@@ -144,9 +149,11 @@ export class UsersService {
         'A user with this public key already exists',
       );
     }
-    return this.repo.create(
-      dto as unknown as Record<string, unknown>,
-    ) as Promise<AppUser>;
+    const data = dto as unknown as Record<string, unknown>;
+    if (typeof data.alias === 'string') {
+      data.aliasNormalized = normalizeAlias(data.alias);
+    }
+    return this.repo.create(data) as Promise<AppUser>;
   }
 
   list(p: PaginationDto): Promise<PublicUser[]> {
@@ -202,6 +209,9 @@ export class UsersService {
     }
 
     const data: Record<string, unknown> = { ...dto };
+    if (typeof dto.alias === 'string') {
+      data.aliasNormalized = normalizeAlias(dto.alias);
+    }
     if (dto.kycStatus) data.kycUpdatedAt = new Date();
     return this.repo.update(id, data) as Promise<AppUser>;
   }

@@ -12,6 +12,7 @@ model AppUser {
   userId               String           @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
   publicKey            String           @unique @map("public_key")
   alias                String?          @unique @map("alias")
+  aliasNormalized      String?          @unique @map("alias_normalized")
   username             String?          @map("username")
   kycStatus            kyc_status       @default(pending) @map("kyc_status")
   role                 app_role         @default(user) @map("role")
