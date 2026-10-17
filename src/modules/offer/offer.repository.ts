@@ -59,6 +59,14 @@ export class OfferRepository extends BaseRepository {
     });
   }
 
+  async getUserRole(userId: string): Promise<string | null> {
+    const user = await this.prisma.appUser.findUnique({
+      where: { userId },
+      select: { role: true },
+    });
+    return user?.role ?? null;
+  }
+
   search(
     where: Record<string, unknown>,
     skip = 0,
