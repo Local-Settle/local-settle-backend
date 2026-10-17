@@ -427,6 +427,34 @@ export class EscrowService {
       );
     }
 
+    const isPng =
+      file.buffer.length >= 8 &&
+      file.buffer.subarray(0, 8).equals(
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      );
+    const isJpeg =
+      file.buffer.length >= 3 &&
+      file.buffer[0] === 0xff &&
+      file.buffer[1] === 0xd8 &&
+      file.buffer[2] === 0xff;
+    const isWebp =
+      file.buffer.length >= 12 &&
+      file.buffer.toString('ascii', 0, 4) === 'RIFF' &&
+      file.buffer.toString('ascii', 8, 12) === 'WEBP';
+    const isPdf = file.buffer.subarray(0, 5).toString('ascii') === '%PDF-';
+    const signatureMatchesMime =
+      (file.mimetype === 'image/png' && isPng) ||
+      (file.mimetype === 'image/jpeg' && isJpeg) ||
+      (file.mimetype === 'image/webp' && isWebp) ||
+      (file.mimetype === 'application/pdf' && isPdf);
+
+    if (!signatureMatchesMime) {
+      throw new AppException(
+        ErrorCode.VALIDATION_ERROR,
+        'Evidence content does not match an allowed file type',
+      );
+    }
+
     const escrow = await this.getOrFail(id);
     const ext = file.originalname.split('.').pop() || 'jpg';
     const key = `evidence/${escrow.escrowId}/${Date.now()}.${ext}`;
