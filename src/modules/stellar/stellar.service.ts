@@ -136,12 +136,25 @@ export class StellarService {
         .payments()
         .forAccount(publicKey)
         .order('desc')
-        .limit(pageSize + 1);
+        // Horizon caps page size at 200. At that cap, probe the next cursor
+        // separately rather than requesting an invalid 201-record page.
+        .limit(pageSize < 200 ? pageSize + 1 : pageSize);
       if (cursor) query = query.cursor(cursor);
       const res = await query.call();
 
-      const hasMore = res.records.length > pageSize;
+      let hasMore = res.records.length > pageSize;
       const pageRecords = res.records.slice(0, pageSize);
+      if (pageSize === 200 && pageRecords.length === 200) {
+        const lastId = String(pageRecords[pageRecords.length - 1].id);
+        const probe = await this.server
+          .payments()
+          .forAccount(publicKey)
+          .order('desc')
+          .cursor(lastId)
+          .limit(1)
+          .call();
+        hasMore = probe.records.length > 0;
+      }
       const records = pageRecords.map((op): TransactionRecord => {
         const o = op as unknown as OperationFields;
         return {
