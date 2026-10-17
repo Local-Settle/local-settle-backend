@@ -289,9 +289,7 @@ export class OrderService {
       previousStatus: order.orderStatus,
     });
 
-    return this.repo.update(id, {
-      orderStatus: ORDER_STATUS.CANCELLED,
-    }) as Promise<Order>;
+    return this.repo.cancelAndReleaseReservation(id);
   }
 
   getUserStats(userId: string): Promise<UserStats> {
@@ -437,10 +435,16 @@ export class OrderService {
         : ORDER_STATUS.EXPIRED;
 
     // 3. Update order status in the database
-    await this.prisma.order.update({
-      where: { orderId: order.orderId },
-      data: { orderStatus: targetStatus },
-    });
+    await this.prisma.$transaction([
+      this.prisma.order.update({
+        where: { orderId: order.orderId },
+        data: { orderStatus: targetStatus },
+      }),
+      this.prisma.offer.updateMany({
+        where: { offerId: order.offerId, executed: true },
+        data: { executed: false },
+      }),
+    ]);
 
     // 4. Create Structured Audit Log
     this.logger.log('order.expiration.audit', {
