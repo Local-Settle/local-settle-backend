@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../common/base.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Order, Prisma } from '@prisma/client';
@@ -61,6 +61,40 @@ export class OrderRepository extends BaseRepository {
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       } as Prisma.OrderUncheckedCreateInput;
 
+      // Serialize capacity checks for a given offer. Without the row lock two
+      // concurrent buyers can both observe the same remaining amount.
+      const [offer] = await tx.$queryRaw<
+        Array<{ max_amount: Prisma.Decimal; min_amount: Prisma.Decimal }>
+      >`SELECT max_amount, min_amount FROM offer WHERE offer_id = ${data.offerId}::uuid FOR UPDATE`;
+
+      if (!offer) {
+        throw new ConflictException(`Offer ${data.offerId} is unavailable`);
+      }
+
+      const requestedAmount = new Prisma.Decimal(data.assetAmount);
+      const minAmount = new Prisma.Decimal(offer.min_amount);
+      const maxAmount = new Prisma.Decimal(offer.max_amount);
+      const now = new Date();
+      const reserved = await tx.order.aggregate({
+        where: {
+          offerId: data.offerId,
+          orderStatus: { in: ['created', 'locked', 'disputed'] },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        _sum: { assetAmount: true },
+      });
+      const usedAmount = reserved._sum.assetAmount ?? new Prisma.Decimal(0);
+      const remaining = maxAmount.minus(usedAmount);
+
+      if (
+        requestedAmount.lessThan(minAmount) ||
+        requestedAmount.greaterThan(remaining)
+      ) {
+        throw new ConflictException(
+          `Order amount must be at least ${minAmount.toString()} and no more than the remaining offer amount ${remaining.toString()}`,
+        );
+      }
+
       const order = await tx.order.create({ data: payload });
 
       // Persist escrow record atomically with the order if data is provided
@@ -79,10 +113,11 @@ export class OrderRepository extends BaseRepository {
         escrowId = escrow.escrowId;
       }
 
-      // Mark the offer as executed so it no longer appears in the active market
+      // Keep an offer available while it still has reservable capacity.
+      const totalReserved = usedAmount.plus(requestedAmount);
       await tx.offer.update({
         where: { offerId: data.offerId },
-        data: { executed: true },
+        data: { executed: totalReserved.greaterThanOrEqualTo(maxAmount) },
       });
       return { ...order, escrowId };
     });
