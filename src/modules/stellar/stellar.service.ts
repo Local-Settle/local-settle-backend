@@ -33,6 +33,12 @@ export interface TransactionRecord {
   amount: string | null;
   asset: string | null;
   asset_issuer: string | null;
+  /** Explicit asset identity; legacy `asset` and `asset_issuer` remain available. */
+  asset_descriptor: {
+    type: string;
+    code: string;
+    issuer: string | null;
+  };
   from: string | null;
   to: string | null;
   direction: 'received' | 'sent';
@@ -137,6 +143,11 @@ export class StellarService {
           amount: o.amount ?? null,
           asset: o.asset_type === 'native' ? 'XLM' : (o.asset_code ?? null),
           asset_issuer: o.asset_issuer ?? null,
+          asset_descriptor: {
+            type: o.asset_type ?? 'unknown',
+            code: o.asset_type === 'native' ? 'XLM' : (o.asset_code ?? ''),
+            issuer: o.asset_type === 'native' ? null : (o.asset_issuer ?? null),
+          },
           from: o.from ?? o.funder ?? null,
           to: o.to ?? o.account ?? null,
           direction:

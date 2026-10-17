@@ -99,6 +99,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Each payment history record retains the legacy `asset` and `asset_issuer` fields and adds `asset_descriptor` with the asset type, code, and issuer. Native XLM uses code `XLM` and a `null` issuer; issued assets include their issuer address.
+
 ## Development checks
 
 ```bash
