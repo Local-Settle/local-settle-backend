@@ -23,6 +23,25 @@ export type OrderWithRelations = Prisma.OrderGetPayload<{
   include: typeof ORDER_DETAIL_INCLUDE;
 }>;
 
+const SCALE = 10_000_000n;
+
+function toScaled(value: string | number): bigint {
+  const text = String(value);
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(text);
+  if (!match) throw new Error('Order amounts and offer prices must be decimal values.');
+  const fraction = match[2] ?? '';
+  let scaled = BigInt(match[1]) * SCALE + BigInt(fraction.slice(0, 7).padEnd(7, '0') || '0');
+  if (fraction.length > 7 && fraction[7] >= '5') scaled += 1n;
+  return scaled;
+}
+
+/** Multiplies 7-place asset values and rounds fiat totals to 2 places, half up. */
+export function calculateFiatAmount(assetAmount: string | number, price: string | number): string {
+  const product = toScaled(assetAmount) * toScaled(price);
+  const cents = (product + 500_000_000_000n) / 1_000_000_000_000n;
+  return `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`;
+}
+
 @Injectable()
 export class OrderRepository extends BaseRepository {
   constructor(private readonly prisma: PrismaService) {
@@ -38,7 +57,7 @@ export class OrderRepository extends BaseRepository {
     buyerId: string;
     sellerId: string;
     assetAmount: string | number;
-    fiatAmount: string | number;
+    fiatAmount?: string | number;
     orderStatus?: string;
     expiresAt?: Date | string | null;
     // Escrow data to persist alongside the order
@@ -50,13 +69,19 @@ export class OrderRepository extends BaseRepository {
     };
   }): Promise<Order & { escrowId: string | null }> {
     const created = await this.prisma.$transaction(async (tx) => {
+      const offer = await tx.offer.findUnique({
+        where: { offerId: data.offerId },
+        select: { price: true },
+      });
+      if (!offer) throw new Error(`Offer ${data.offerId} not found.`);
+      const fiatAmount = calculateFiatAmount(data.assetAmount, String(offer.price));
       const payload = {
         ...(data.orderId ? { orderId: data.orderId } : {}),
         offerId: data.offerId,
         buyerId: data.buyerId,
         sellerId: data.sellerId,
         assetAmount: data.assetAmount,
-        fiatAmount: data.fiatAmount,
+        fiatAmount,
         orderStatus: data.orderStatus || undefined,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       } as Prisma.OrderUncheckedCreateInput;

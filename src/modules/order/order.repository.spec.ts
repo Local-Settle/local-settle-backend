@@ -1,4 +1,8 @@
-import { OrderRepository, ORDER_DETAIL_INCLUDE } from './order.repository';
+import {
+  OrderRepository,
+  ORDER_DETAIL_INCLUDE,
+  calculateFiatAmount,
+} from './order.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
   ORDER_PARTY_SELECT,
@@ -7,6 +11,16 @@ import {
 } from '../../common/prisma-selects';
 
 describe('OrderRepository', () => {
+  describe('fiat total calculation', () => {
+    it('uses decimal arithmetic for repeating fractional amounts', () => {
+      expect(calculateFiatAmount('1.3333333', '3')).toBe('4.00');
+    });
+
+    it('rounds half up to two fiat decimal places', () => {
+      expect(calculateFiatAmount('0.5', '0.01')).toBe('0.01');
+    });
+  });
+
   const order = {
     findMany: jest.fn().mockResolvedValue([]),
     findUnique: jest.fn().mockResolvedValue(null),

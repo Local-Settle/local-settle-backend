@@ -99,6 +99,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Order creation derives and persists `fiatAmount` from the selected offer price and asset amount. The total is rounded to two decimal places using half-up rounding; a legacy client-supplied `fiatAmount` is accepted but ignored.
+
 ## Development checks
 
 ```bash

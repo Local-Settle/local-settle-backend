@@ -42,7 +42,6 @@ type OrderCreateData = {
   buyerId: string;
   sellerId: string;
   assetAmount: string;
-  fiatAmount: string;
   orderStatus?: string;
   expiresAt?: Date;
   escrow: {
@@ -115,7 +114,6 @@ export class OrderService {
       buyerId: dto.buyerId,
       sellerId: dto.sellerId,
       assetAmount: dto.assetAmount,
-      fiatAmount: dto.fiatAmount,
       orderStatus: dto.orderStatus,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
       escrow: {
