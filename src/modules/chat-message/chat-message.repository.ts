@@ -23,4 +23,28 @@ export class ChatMessageRepository extends BaseRepository {
       select: { buyerId: true, sellerId: true },
     });
   }
+
+  findEvidenceForOrder(orderId: string, evidenceIds: string[]) {
+    return this.prisma.escrowOnChain.findMany({
+      where: {
+        orderId,
+        escrowId: { in: evidenceIds },
+        evidenceUrl: { not: null },
+      },
+      select: {
+        escrowId: true,
+        evidenceUrl: true,
+        evidenceFileName: true,
+        evidenceContentType: true,
+        evidenceSize: true,
+      },
+    });
+  }
+
+  findMessageOrderAndAttachmentRefs(messageId: string) {
+    return this.prisma.chatMessage.findUnique({
+      where: { messageId },
+      select: { orderId: true, attachmentRefs: true },
+    });
+  }
 }

@@ -426,10 +426,31 @@ export class EscrowService {
         `Invalid file type "${file.mimetype}". Allowed: ${allowedMimes.join(', ')}`,
       );
     }
+    if (file.size < 1 || file.size > 10 * 1024 * 1024) {
+      throw new AppException(
+        ErrorCode.VALIDATION_ERROR,
+        'Evidence file must be between 1 byte and 10 MB.',
+      );
+    }
 
     const escrow = await this.getOrFail(id);
-    const ext = file.originalname.split('.').pop() || 'jpg';
+    const extensionByType: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'application/pdf': 'pdf',
+    };
+    const ext = extensionByType[file.mimetype];
     const key = `evidence/${escrow.escrowId}/${Date.now()}.${ext}`;
+    const candidateName = file.originalname
+      .split(/[\\/]/)
+      .pop()
+      ?.replace(/[\u0000-\u001f\u007f]/g, '')
+      .slice(0, 180);
+    const fileName =
+      candidateName && candidateName !== '.' && candidateName !== '..'
+        ? candidateName
+        : `evidence.${ext}`;
 
     const result = await this.fileStorage.uploadFile({
       originalname: file.originalname,
@@ -439,7 +460,12 @@ export class EscrowService {
       key,
     });
 
-    await this.repo.update(id, { evidenceUrl: result.url });
+    await this.repo.update(id, {
+      evidenceUrl: result.url,
+      evidenceFileName: fileName,
+      evidenceContentType: file.mimetype,
+      evidenceSize: file.size,
+    });
 
     return { url: result.url };
   }

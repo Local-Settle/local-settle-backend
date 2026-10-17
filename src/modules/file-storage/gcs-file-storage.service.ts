@@ -86,4 +86,27 @@ export class GcsFileStorageService
       url: `${this.publicUrlBase}/${key}`,
     };
   }
+
+  async getSignedDownloadUrlFromUrl(url: string): Promise<string> {
+    const pathname = new URL(url).pathname;
+    const bucketMarker = `/${this.bucketName}/`;
+    const bucketIndex = pathname.indexOf(bucketMarker);
+    if (bucketIndex < 0) {
+      throw new Error('Evidence URL is outside the storage bucket');
+    }
+
+    const key = decodeURIComponent(
+      pathname.slice(bucketIndex + bucketMarker.length),
+    );
+    if (!key.startsWith('evidence/')) {
+      throw new Error('Evidence URL is not an evidence object');
+    }
+
+    const [signedUrl] = await this.bucket.file(key).getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: Date.now() + 5 * 60 * 1000,
+    });
+    return signedUrl;
+  }
 }

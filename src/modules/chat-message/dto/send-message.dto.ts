@@ -1,6 +1,8 @@
 import {
-  IsNotEmpty,
   IsOptional,
+  IsArray,
+  ArrayMaxSize,
+  ArrayUnique,
   IsString,
   IsUUID,
   MaxLength,
@@ -12,10 +14,17 @@ export class OrderRoomDto {
 }
 
 export class SendMessageDto extends OrderRoomDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(4000)
-  content: string;
+  content?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  attachmentEvidenceIds?: string[];
 
   @IsOptional()
   @IsUUID()

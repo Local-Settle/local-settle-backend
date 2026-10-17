@@ -68,6 +68,18 @@ class FakeChatMessageService {
     return Promise.resolve(message);
   }
 
+  createFromChat(dto: {
+    orderId: string;
+    senderId: string;
+    content: string;
+  }): Promise<ChatMessage> {
+    return this.create(dto);
+  }
+
+  getSignedAttachmentsForOrder(): Promise<[]> {
+    return Promise.resolve([]);
+  }
+
   reset(): void {
     this.messages.length = 0;
     this.nextId = 1;
