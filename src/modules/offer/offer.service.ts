@@ -44,6 +44,7 @@ export class OfferService {
     const where: Record<string, unknown> = {};
     if (q.creatorId) where.creatorId = q.creatorId;
     if (q.status) where.status = q.status;
+    if (q.status === 'active' && !q.creatorId) where.executed = false;
     if (q.type) where.type = q.type;
     if (q.assetCode) where.assetCode = q.assetCode;
     return this.repo.search(where, p.skip, p.take);

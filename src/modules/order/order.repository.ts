@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../common/base.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Order, Prisma } from '@prisma/client';
@@ -50,6 +50,13 @@ export class OrderRepository extends BaseRepository {
     };
   }): Promise<Order & { escrowId: string | null }> {
     const created = await this.prisma.$transaction(async (tx) => {
+      const reservation = await tx.offer.updateMany({
+        where: { offerId: data.offerId, status: 'active', executed: false },
+        data: { executed: true },
+      });
+      if (reservation.count !== 1) {
+        throw new ConflictException('Offer is unavailable or already reserved');
+      }
       const payload = {
         ...(data.orderId ? { orderId: data.orderId } : {}),
         offerId: data.offerId,
@@ -79,15 +86,24 @@ export class OrderRepository extends BaseRepository {
         escrowId = escrow.escrowId;
       }
 
-      // Mark the offer as executed so it no longer appears in the active market
-      await tx.offer.update({
-        where: { offerId: data.offerId },
-        data: { executed: true },
-      });
       return { ...order, escrowId };
     });
 
     return created;
+  }
+
+  async cancelAndReleaseReservation(orderId: string): Promise<Order> {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.update({
+        where: { orderId },
+        data: { orderStatus: ORDER_STATUS.CANCELLED },
+      });
+      await tx.offer.updateMany({
+        where: { offerId: order.offerId, executed: true },
+        data: { executed: false },
+      });
+      return order;
+    });
   }
 
   search(
