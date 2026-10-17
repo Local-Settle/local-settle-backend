@@ -73,7 +73,11 @@ describe('OfferRepository', () => {
     await repo.create({ creatorId: 'user-1', paymentMethodIds: ['pm-1'] });
 
     expect(paymentMethod.findMany).toHaveBeenCalledWith({
-      where: { paymentId: { in: ['pm-1'] } },
+      where: {
+        paymentId: { in: ['pm-1'] },
+        userId: 'user-1',
+        isActive: true,
+      },
       select: { paymentId: true },
     });
     expect(offer.create).toHaveBeenCalledWith({
@@ -83,5 +87,17 @@ describe('OfferRepository', () => {
       },
       include: OFFER_DETAIL_INCLUDE,
     });
+  });
+
+  it('rejects a mixed set before creating the offer', async () => {
+    paymentMethod.findMany.mockResolvedValue([{ paymentId: 'pm-1' }]);
+
+    await expect(
+      repo.create({
+        creatorId: 'user-1',
+        paymentMethodIds: ['pm-1', 'pm-foreign'],
+      }),
+    ).rejects.toThrow('Payment methods must be active and owned by the offer creator');
+    expect(offer.create).not.toHaveBeenCalled();
   });
 });
