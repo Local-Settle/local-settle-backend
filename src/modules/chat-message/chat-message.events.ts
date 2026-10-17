@@ -2,6 +2,8 @@ export const ChatEvent = {
   JOIN_ORDER: 'join-order',
   LEAVE_ORDER: 'leave-order',
   SEND_MESSAGE: 'send-message',
+  MARK_READ: 'mark-read',
+  MESSAGE_RECEIPT: 'message-receipt',
   MESSAGE_CREATED: 'message-created',
   CHAT_ERROR: 'chat-error',
   USER_JOINED: 'user-joined',
