@@ -104,6 +104,22 @@ export class OrderRepository extends BaseRepository {
     });
   }
 
+  async searchPage(where: Record<string, unknown>, skip = 0, take = 20) {
+    const [items, total] = await Promise.all([
+      this.search(where, skip, take),
+      this.prisma.order.count({ where: where as Prisma.OrderWhereInput }),
+    ]);
+    const hasMore = skip + items.length < total;
+    return {
+      items,
+      total,
+      skip,
+      take,
+      hasMore,
+      nextSkip: hasMore ? skip + items.length : null,
+    };
+  }
+
   findById(id: string): Promise<OrderWithRelations | null> {
     return this.prisma.order.findUnique({
       where: { orderId: id },
