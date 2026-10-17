@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { AuditLogRepository } from './audit-log.repository';
 import { CreateAuditLogInput } from './interfaces/create-audit-log.interface';
 
@@ -48,7 +49,11 @@ export class AuditLogService {
    */
   async create(input: CreateAuditLogInput): Promise<void> {
     try {
-      await this.repository.create(input);
+      await this.repository.create({
+        ...input,
+        ipAddress: this.maskIpAddress(input.ipAddress),
+        userAgent: undefined,
+      });
     } catch (error) {
       this.logger.error(
         `Failed to write audit log for action=${input.action} correlationId=${input.correlationId ?? 'none'}`,
@@ -65,7 +70,11 @@ export class AuditLogService {
    */
   async createOrThrow(input: CreateAuditLogInput): Promise<void> {
     try {
-      await this.repository.create(input);
+      await this.repository.create({
+        ...input,
+        ipAddress: this.maskIpAddress(input.ipAddress),
+        userAgent: undefined,
+      });
     } catch (error) {
       this.logger.error(
         `Failed to write REQUIRED audit log for action=${input.action} correlationId=${input.correlationId ?? 'none'}`,
@@ -86,5 +95,30 @@ export class AuditLogService {
     take = 20,
   ) {
     return this.repository.findByResource(resourceType, resourceId, skip, take);
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async pruneExpiredRecords(): Promise<void> {
+    const configuredDays = Number(
+      process.env.AUDIT_LOG_RETENTION_DAYS ?? '365',
+    );
+    const retentionDays =
+      Number.isInteger(configuredDays) && configuredDays > 0
+        ? configuredDays
+        : 365;
+    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+    const result = await this.repository.deleteCreatedBefore(cutoff);
+    this.logger.log(`Pruned ${result.count} expired audit records`);
+  }
+
+  private maskIpAddress(ipAddress?: string): string | undefined {
+    if (!ipAddress) return undefined;
+    if (ipAddress.includes('.')) {
+      const octets = ipAddress.split('.');
+      return octets.length === 4 ? `${octets.slice(0, 3).join('.')}.0` : undefined;
+    }
+    if (ipAddress.includes(':'))
+      return `${ipAddress.split(':').slice(0, 4).join(':')}::`;
+    return undefined;
   }
 }

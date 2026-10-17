@@ -53,4 +53,10 @@ export class AuditLogRepository {
       take,
     });
   }
+
+  deleteCreatedBefore(cutoff: Date) {
+    return this.prisma.auditLog.deleteMany({
+      where: { createdAt: { lt: cutoff } },
+    });
+  }
 }

@@ -122,3 +122,7 @@ Never commit or log private keys, JWTs, webhook secrets, full bank details, or i
 ## License
 
 LocalSettle is licensed under the MIT License. See [LICENSE](LICENSE).
+
+### Audit-log privacy and retention
+
+Audit writes store IPv4 at `/24` precision and IPv6 at `/64` precision; user-agent strings are omitted. Audit records older than `AUDIT_LOG_RETENTION_DAYS` are deleted daily (default: 365 days; invalid values use the default). The audit repository is internal to the API and does not expose an HTTP export or query endpoint; any future operator-facing query must add explicit role authorization before exposure. Retention deletion is irreversible, so production operators should choose a period that meets applicable forensic and privacy requirements.
