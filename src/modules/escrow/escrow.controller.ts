@@ -90,6 +90,14 @@ export class EscrowController {
     return this.service.uploadEvidence(id, file);
   }
 
+  /** Return a short-lived evidence link to an order participant. */
+  @Get(':id/evidence')
+  @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
+  @ResourceOwner(ResourceType.ESCROW)
+  getEvidenceDownloadUrl(@Param('id') id: string) {
+    return this.service.getEvidenceDownloadUrl(id);
+  }
+
   /** Get escrow status with live on-chain data */
   @Get(':id/status')
   @UseGuards(JwtAuthGuard, ResourceOwnerGuard)

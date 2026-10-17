@@ -25,4 +25,12 @@ export class MockFileStorageService extends FileStorageService {
       url: `https://mock-storage.ikash.local/${key}`,
     });
   }
+
+  async getSignedDownloadUrl(
+    storedUrl: string,
+    expiresInSeconds: number,
+  ): Promise<string> {
+    const expires = Math.floor(Date.now() / 1000) + expiresInSeconds;
+    return `${storedUrl}?expires=${expires}&signature=mock`;
+  }
 }
