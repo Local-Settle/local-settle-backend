@@ -23,6 +23,11 @@ import {
 } from '@prisma/client';
 import axios from 'axios';
 
+const SUPPORTED_ESCROW_TOPICS = [
+  'ESCROW_CREATED', 'ESCROW_FUNDED', 'ESCROW_RELEASED',
+  'ESCROW_REFUNDED', 'ESCROW_CANCELLED', 'ESCROW_DISPUTED',
+];
+
 type EscrowWithOrder = EscrowOnChain & {
   order?: Order | null;
 };
@@ -219,6 +224,7 @@ export class StellarListenerService implements OnModuleInit, OnModuleDestroy {
             {
               type: 'contract',
               contractIds,
+              topics: [SUPPORTED_ESCROW_TOPICS.map((value) => ({ type: 'symbol', value }))],
             },
           ],
           pagination: {

@@ -111,49 +111,21 @@ export class StellarEventParserService {
     directType: unknown,
     topics: string[],
   ): OnChainEscrowEventType | null {
-    const candidateStr = [directType, ...topics]
+    const candidates = [directType, ...topics]
       .filter((item): item is string => typeof item === 'string')
-      .join(' ')
-      .toUpperCase();
-
-    if (
-      candidateStr.includes('ESCROW_CREATED') ||
-      candidateStr.includes('INITIALIZE') ||
-      candidateStr.includes('CREATED')
-    ) {
-      return 'ESCROW_CREATED';
+      .map((item) => item.toUpperCase());
+    const supported = new Map<string, OnChainEscrowEventType>([
+      ['ESCROW_CREATED', 'ESCROW_CREATED'], ['CREATED', 'ESCROW_CREATED'], ['INITIALIZE', 'ESCROW_CREATED'],
+      ['ESCROW_FUNDED', 'ESCROW_FUNDED'], ['FUND', 'ESCROW_FUNDED'],
+      ['ESCROW_RELEASED', 'ESCROW_RELEASED'], ['RELEASE', 'ESCROW_RELEASED'],
+      ['ESCROW_REFUNDED', 'ESCROW_REFUNDED'], ['REFUND', 'ESCROW_REFUNDED'],
+      ['ESCROW_CANCELLED', 'ESCROW_CANCELLED'], ['CANCEL', 'ESCROW_CANCELLED'],
+      ['ESCROW_DISPUTED', 'ESCROW_DISPUTED'], ['DISPUTE', 'ESCROW_DISPUTED'],
+    ]);
+    for (const candidate of candidates) {
+      const match = supported.get(candidate);
+      if (match) return match;
     }
-    if (
-      candidateStr.includes('ESCROW_REFUNDED') ||
-      candidateStr.includes('REFUND')
-    ) {
-      return 'ESCROW_REFUNDED';
-    }
-    if (
-      candidateStr.includes('ESCROW_FUNDED') ||
-      candidateStr.includes('FUND')
-    ) {
-      return 'ESCROW_FUNDED';
-    }
-    if (
-      candidateStr.includes('ESCROW_RELEASED') ||
-      candidateStr.includes('RELEASE')
-    ) {
-      return 'ESCROW_RELEASED';
-    }
-    if (
-      candidateStr.includes('ESCROW_CANCELLED') ||
-      candidateStr.includes('CANCEL')
-    ) {
-      return 'ESCROW_CANCELLED';
-    }
-    if (
-      candidateStr.includes('ESCROW_DISPUTED') ||
-      candidateStr.includes('DISPUTE')
-    ) {
-      return 'ESCROW_DISPUTED';
-    }
-
     return null;
   }
 
