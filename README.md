@@ -99,6 +99,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Escrow evidence uploads accept only matching PDF, JPEG, PNG, or WebP extensions and MIME types. Storage keys use generated UUID filenames and are persisted in `evidence_key`; apply the `add_escrow_evidence_key` migration before deploying this change.
+
 ## Development checks
 
 ```bash

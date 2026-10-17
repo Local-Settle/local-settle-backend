@@ -43,6 +43,7 @@ import {
 } from '../file-storage/file-storage.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
+import { createEvidenceObjectKey } from '../file-storage/evidence-object-key.util';
 
 @Injectable()
 export class EscrowService {
@@ -414,22 +415,12 @@ export class EscrowService {
       );
     }
 
-    const allowedMimes = [
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      'application/pdf',
-    ];
-    if (!allowedMimes.includes(file.mimetype)) {
-      throw new AppException(
-        ErrorCode.VALIDATION_ERROR,
-        `Invalid file type "${file.mimetype}". Allowed: ${allowedMimes.join(', ')}`,
-      );
-    }
-
     const escrow = await this.getOrFail(id);
-    const ext = file.originalname.split('.').pop() || 'jpg';
-    const key = `evidence/${escrow.escrowId}/${Date.now()}.${ext}`;
+    const key = createEvidenceObjectKey(
+      escrow.escrowId,
+      file.originalname,
+      file.mimetype,
+    );
 
     const result = await this.fileStorage.uploadFile({
       originalname: file.originalname,
@@ -439,7 +430,7 @@ export class EscrowService {
       key,
     });
 
-    await this.repo.update(id, { evidenceUrl: result.url });
+    await this.repo.update(id, { evidenceUrl: result.url, evidenceKey: key });
 
     return { url: result.url };
   }
