@@ -1,0 +1,12 @@
+{
+  "offerId": "00000000-0000-4000-8000-000000000002",
+  "creatorId": "00000000-0000-4000-8000-000000000001",
+  "type": "sell",
+  "assetCode": "USDC",
+  "price": "1500.00",
+  "minAmount": "5.00",
+  "maxAmount": "100.00",
+  "status": "active",
+  "executed": false,
+  "payment_methods": []
+}
