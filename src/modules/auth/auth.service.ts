@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Keypair, StrKey } from '@stellar/stellar-sdk';
 import { AppUser } from '@prisma/client';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AppException, ErrorCode } from '../../common/errors';
 import { CreateAuthChallengeDto } from './dto/create-auth-challenge.dto';
@@ -23,6 +23,7 @@ export interface AuthChallengeResponse {
 }
 
 const DEFAULT_CHALLENGE_EXPIRATION_SECONDS = 300;
+const AUTH_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 const ED25519_SIGNATURE_LENGTH = 64;
 
@@ -160,11 +161,6 @@ export class AuthService {
       update: {},
     });
 
-    const payload: { sub: string; publicKey: string } = {
-      sub: user.userId,
-      publicKey,
-    };
-
     await this.auditLogService.create({
       action: AuditAction.USER_LOGIN_SUCCESS,
       resourceType: 'User',
@@ -176,7 +172,7 @@ export class AuthService {
     });
 
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: await this.createSessionToken(user.userId, publicKey),
       user,
     };
   }
@@ -184,16 +180,56 @@ export class AuthService {
   /**
    * Generates a definitive JWT after the user has completed their profile setup.
    */
-  finalizeSetup(userId: string, publicKey: string): { access_token: string } {
-    const payload: { sub: string; publicKey: string; setupComplete: boolean } =
-      {
-        sub: userId,
-        publicKey,
-        setupComplete: true,
-      };
+  async finalizeSetup(
+    userId: string,
+    publicKey: string,
+  ): Promise<{ access_token: string }> {
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: await this.createSessionToken(userId, publicKey, true),
     };
+  }
+
+  /** Revokes only the authenticated JWT session, leaving other devices active. */
+  async revokeSession(
+    userId: string,
+    sessionId?: string,
+  ): Promise<{ revoked: boolean }> {
+    if (!sessionId) {
+      throw new UnauthorizedException(
+        'This token does not support session revocation; sign in again',
+      );
+    }
+
+    const result = await this.prisma.authSession.updateMany({
+      where: { sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { revoked: result.count > 0 };
+  }
+
+  private async createSessionToken(
+    userId: string,
+    publicKey: string,
+    setupComplete = false,
+  ): Promise<string> {
+    const sessionId = randomUUID();
+    await this.prisma.authSession.create({
+      data: {
+        sessionId,
+        userId,
+        expiresAt: new Date(Date.now() + AUTH_TOKEN_TTL_MS),
+      },
+    });
+
+    const payload: {
+      sub: string;
+      publicKey: string;
+      setupComplete?: boolean;
+    } = { sub: userId, publicKey };
+    if (setupComplete) payload.setupComplete = true;
+
+    return this.jwtService.sign(payload, { jwtid: sessionId });
   }
 
   private async recordLoginFailure(

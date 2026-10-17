@@ -16,7 +16,7 @@ LocalSettle is a peer-to-peer marketplace that connects local payment methods wi
 
 ### Wallet authentication
 
-`POST /auth/challenge` creates a short-lived random challenge for a public key. The connected wallet signs it locally. `POST /auth/login` verifies the signature, consumes the challenge once, and returns a session token. The API verifies public-key ownership; it does not need the user's secret key for this flow.
+`POST /auth/challenge` creates a short-lived random challenge for a public key. The connected wallet signs it locally. `POST /auth/login` verifies the signature, consumes the challenge once, and returns a session token. The API verifies public-key ownership; it does not need the user's secret key for this flow. Each newly issued JWT is tied to a server-side session. Send the current bearer token to `POST /auth/logout` to revoke only that session; other signed-in devices remain active. Tokens issued before session tracking was deployed must be refreshed before they can be revoked.
 
 ### Direct USDC payment
 
@@ -92,6 +92,7 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 | Route | Purpose |
 | --- | --- |
 | `POST /auth/challenge`, `POST /auth/login` | Wallet challenge-response session |
+| `POST /auth/logout` | Revokes the current bearer-token session |
 | `GET /stellar/account/:publicKey`, `GET /stellar/balances/:publicKey` | Stellar account and balance reads |
 | `GET /stellar/transactions` | Authenticated wallet payment history |
 | `GET /send/resolve`, `POST /send/prepare`, `POST /send/submit` | Prepare and submit a signed USDC payment |

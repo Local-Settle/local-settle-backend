@@ -13,6 +13,7 @@ import { Throttle } from '@nestjs/throttler';
 import { rateLimitConfig } from '../../config/rate-limit.config';
 import { AuthService } from './auth.service';
 import { AuthRateLimitGuard } from './auth-rate-limit.guard';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { CreateAuthChallengeDto } from './dto/create-auth-challenge.dto';
 import { LoginDto } from './dto/login.dto';
 import {
@@ -73,5 +74,17 @@ export class AuthController {
       userAgent: req.headers['user-agent'],
     };
     return this.authService.login(dto, ctx);
+  }
+
+  /** Revokes this bearer token without affecting the user's other sessions. */
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  logout(
+    @Req()
+    req: Request & {
+      user: { userId: string; sessionId?: string };
+    },
+  ) {
+    return this.authService.revokeSession(req.user.userId, req.user.sessionId);
   }
 }
