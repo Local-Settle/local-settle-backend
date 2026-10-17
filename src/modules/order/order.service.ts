@@ -150,7 +150,7 @@ export class OrderService {
     };
   }
 
-  list(p: PaginationDto, q: OrderFilter): Promise<OrderWithRelations[]> {
+  list(p: PaginationDto, q: OrderFilter) {
     const where: Record<string, unknown> = {};
     if (q.offerId) where.offerId = q.offerId;
     if (q.buyerId) where.buyerId = q.buyerId;
@@ -160,7 +160,7 @@ export class OrderService {
     }
     if (q.status) where.orderStatus = q.status as order_status;
 
-    return this.repo.search(where, p.skip, p.take);
+    return this.repo.searchPage(where, p.skip ?? 0, p.take ?? 20);
   }
 
   async get(id: string): Promise<OrderWithRelations> {
