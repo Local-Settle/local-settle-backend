@@ -122,3 +122,5 @@ Never commit or log private keys, JWTs, webhook secrets, full bank details, or i
 ## License
 
 LocalSettle is licensed under the MIT License. See [LICENSE](LICENSE).
+
+`GET /stellar/balances/:publicKey` returns each asset balance as before. The native XLM record also includes `minimum_reserve` and `spendable_balance`; reserve uses the live Horizon base reserve and account subentry/sponsorship counts, and spendable subtracts selling liabilities.
