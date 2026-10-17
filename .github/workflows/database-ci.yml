@@ -1,0 +1,51 @@
+name: Database schema CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  prisma-postgres:
+    name: Validate Prisma schema and migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: local_settle_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d local_settle_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/local_settle_test?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/local_settle_test?schema=public
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Validate Prisma schema
+        run: pnpm exec prisma validate
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
+      - name: Apply migrations to clean PostgreSQL
+        run: pnpm exec prisma migrate deploy
