@@ -78,6 +78,8 @@ Protocol references: [Stellar developer documentation](https://developers.stella
 
 Requirements: Node.js 20+, npm, and PostgreSQL. Copy `.env.example` to `.env`; configure `DATABASE_URL`, `DIRECT_URL`, and a local `JWT_SECRET`. For Stellar features, configure `STELLAR_HORIZON_URL`, `STELLAR_RPC_URL`, `STELLAR_NETWORK`, and the relevant issuer and Trustless Work values. Use test credentials and Testnet accounts only.
 
+Payment identifiers are encrypted with AES-256-GCM before persistence. Configure a 32-byte base64 key using the deployment secret manager (`PAYMENT_DATA_ENCRYPTION_KEYS` maps key versions to keys and `PAYMENT_DATA_ENCRYPTION_CURRENT_VERSION` selects the write key). Keep old key versions available while rows still use them; add the new key, switch the current version, then retire an old key only after its data has been re-encrypted. Existing plaintext records are encrypted on their next read.
+
 ```bash
 npm install
 npx prisma generate
