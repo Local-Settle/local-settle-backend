@@ -99,6 +99,8 @@ The API listens on port `3001` by default. The frontend should point `NEXT_PUBLI
 
 Routes have endpoint-specific validation and guards. Check the controller and DTO before relying on an endpoint's authentication or ownership behavior.
 
+Stellar payment history accepts `limit` (default 10, maximum 200) and an optional Horizon `cursor`. The response is `{ records, nextCursor? }`; pass `nextCursor` as `cursor` to fetch the next page. `nextCursor` is omitted on the final page.
+
 ## Development checks
 
 ```bash

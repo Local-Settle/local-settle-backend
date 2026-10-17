@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   Asset,
@@ -36,6 +36,11 @@ export interface TransactionRecord {
   from: string | null;
   to: string | null;
   direction: 'received' | 'sent';
+}
+
+export interface TransactionPage {
+  records: TransactionRecord[];
+  nextCursor?: string;
 }
 
 export interface PaymentResult {
@@ -116,18 +121,28 @@ export class StellarService {
   async getTransactions(
     publicKey: string,
     limit = 10,
-  ): Promise<TransactionRecord[]> {
+    cursor?: string,
+  ): Promise<TransactionPage> {
     this.assertPublicKey(publicKey);
 
+    if (cursor !== undefined && cursor !== 'now' && !/^\d+$/.test(cursor)) {
+      throw new BadRequestException('Cursor must be a Stellar payments cursor.');
+    }
+
+    const pageSize = Math.min(Math.max(Math.trunc(limit) || 10, 1), 200);
+
     try {
-      const res = await this.server
+      let query = this.server
         .payments()
         .forAccount(publicKey)
         .order('desc')
-        .limit(Math.min(Math.max(limit, 1), 200))
-        .call();
+        .limit(pageSize + 1);
+      if (cursor) query = query.cursor(cursor);
+      const res = await query.call();
 
-      return res.records.map((op): TransactionRecord => {
+      const hasMore = res.records.length > pageSize;
+      const pageRecords = res.records.slice(0, pageSize);
+      const records = pageRecords.map((op): TransactionRecord => {
         const o = op as unknown as OperationFields;
         return {
           id: o.id,
@@ -143,6 +158,12 @@ export class StellarService {
             o.to === publicKey || o.account === publicKey ? 'received' : 'sent',
         };
       });
+      return {
+        records,
+        ...(hasMore && pageRecords.length
+          ? { nextCursor: String(pageRecords[pageRecords.length - 1].id) }
+          : {}),
+      };
     } catch (err: unknown) {
       const horizonErr = err as HorizonError;
       if (horizonErr?.response?.status === 404) {

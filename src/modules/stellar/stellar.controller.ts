@@ -36,10 +36,12 @@ export class StellarController {
   getMyTransactions(
     @CurrentUser() user: { publicKey: string },
     @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
   ) {
     return this.stellar.getTransactions(
       user.publicKey,
       limit ? Number(limit) : 10,
+      cursor,
     );
   }
 
@@ -47,8 +49,13 @@ export class StellarController {
   getTxs(
     @Param('publicKey') publicKey: string,
     @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
   ) {
-    return this.stellar.getTransactions(publicKey, limit ? Number(limit) : 10);
+    return this.stellar.getTransactions(
+      publicKey,
+      limit ? Number(limit) : 10,
+      cursor,
+    );
   }
 
   @Post('pay')
