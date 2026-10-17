@@ -8,6 +8,7 @@ import { PaymentMethodValidatorService } from '../payment-methods/payment-method
 import { PaginationDto } from '../../common/pagination.dto';
 import { USER_PUBLIC_SELECT } from '../../common/prisma-selects';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -16,6 +17,7 @@ describe('UsersService', () => {
     findById: jest.Mock;
     findMany: jest.Mock;
     findExportData: jest.Mock;
+    isAliasAvailable: jest.Mock;
   };
   let mockFileStorageService: {
     uploadFile: jest.Mock;
@@ -41,6 +43,7 @@ describe('UsersService', () => {
       findById: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
       findExportData: jest.fn(),
+      isAliasAvailable: jest.fn().mockResolvedValue(true),
     };
 
     mockFileStorageService = {
@@ -102,6 +105,80 @@ describe('UsersService', () => {
     ).resolves.toEqual(updatedUser);
 
     expect(repo.update).toHaveBeenCalledWith('user-1', { alias: 'new-alias' });
+  });
+
+  it('audits a no-op sensitive profile update with no changed values', async () => {
+    const user = { userId: 'user-1', bio: 'Same bio' };
+    repo.findById.mockResolvedValue(user);
+    repo.update.mockResolvedValue(user);
+
+    await service.update('user-1', { bio: 'Same bio' }, 'user-1');
+
+    expect(mockAuditLogService.create).toHaveBeenCalledWith({
+      action: AuditAction.USER_PROFILE_UPDATED,
+      resourceType: 'User',
+      resourceId: 'user-1',
+      result: AuditResult.SUCCESS,
+      metadata: { fields: [] },
+    });
+  });
+
+  it('audits only the names of sensitive fields changed together', async () => {
+    repo.findById.mockResolvedValue({
+      userId: 'user-1',
+      alias: 'old-name',
+      preferredCurrency: 'USD',
+      bio: 'old bio',
+      securityUpdates: false,
+    });
+    repo.update.mockResolvedValue({ userId: 'user-1' });
+
+    await service.update(
+      'user-1',
+      {
+        alias: 'new-name',
+        preferredCurrency: 'EUR',
+        bio: 'new bio',
+        securityUpdates: true,
+      },
+      'user-1',
+    );
+
+    expect(mockAuditLogService.create).toHaveBeenCalledWith({
+      action: AuditAction.USER_PROFILE_UPDATED,
+      resourceType: 'User',
+      resourceId: 'user-1',
+      result: AuditResult.SUCCESS,
+      metadata: {
+        fields: ['alias', 'preferredCurrency', 'bio', 'securityUpdates'],
+      },
+    });
+    expect(JSON.stringify(mockAuditLogService.create.mock.calls)).not.toContain(
+      'new-name',
+    );
+    expect(JSON.stringify(mockAuditLogService.create.mock.calls)).not.toContain(
+      'EUR',
+    );
+  });
+
+  it('audits failed sensitive profile changes using field names only', async () => {
+    repo.findById.mockResolvedValue({ userId: 'user-1', alias: 'old-name' });
+    repo.isAliasAvailable.mockResolvedValue(false);
+
+    await expect(
+      service.update('user-1', { alias: 'taken-name' }, 'user-1'),
+    ).rejects.toThrow();
+
+    expect(mockAuditLogService.create).toHaveBeenCalledWith({
+      action: AuditAction.USER_PROFILE_UPDATED,
+      resourceType: 'User',
+      resourceId: 'user-1',
+      result: AuditResult.FAILURE,
+      metadata: { fields: ['alias'] },
+    });
+    expect(JSON.stringify(mockAuditLogService.create.mock.calls)).not.toContain(
+      'taken-name',
+    );
   });
 
   it('sets kycUpdatedAt only after ownership is validated', async () => {
