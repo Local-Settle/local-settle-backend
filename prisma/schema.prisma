@@ -51,6 +51,8 @@ model Offer {
   orders          Order[]
   payment_methods PaymentMethod[] @relation("OfferPaymentMethods")
 
+  @@index([status, type, assetCode, offerId], map: "idx_offer_market_filters")
+  @@index([creatorId, offerId], map: "idx_offer_creator_offer_id")
   @@map("offer")
 }
 
@@ -69,6 +71,9 @@ model Order {
   offer        Offer          @relation(fields: [offerId], references: [offerId], onUpdate: NoAction)
   seller       AppUser        @relation("SellerOrders", fields: [sellerId], references: [userId], onUpdate: NoAction)
 
+  @@index([buyerId, orderStatus, orderId], map: "idx_order_buyer_status_order_id")
+  @@index([sellerId, orderStatus, orderId], map: "idx_order_seller_status_order_id")
+  @@index([offerId, orderId], map: "idx_order_offer_order_id")
   @@map("order")
 }
 
