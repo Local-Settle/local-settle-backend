@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { randomUUID } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -15,6 +16,19 @@ async function bootstrap() {
 
   app.use(helmet());
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  app.use(
+    (req: Request & { correlationId?: string }, res: Response, next: NextFunction) => {
+      const incoming = req.header('x-correlation-id');
+      const correlationId =
+        incoming && incoming.length <= 64 && /^[A-Za-z0-9._-]+$/.test(incoming)
+          ? incoming
+          : randomUUID();
+      req.correlationId = correlationId;
+      res.setHeader('x-correlation-id', correlationId);
+      next();
+    },
+  );
 
   app.use(
     (
