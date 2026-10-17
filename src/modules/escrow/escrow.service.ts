@@ -47,6 +47,10 @@ import { AuditAction, AuditResult } from '../audit-log/enums/audit-action.enum';
 @Injectable()
 export class EscrowService {
   private readonly logger = new Logger(EscrowService.name);
+  private readonly evidenceUsage = new Map<
+    string,
+    { bytes: number; expiresAt: number }
+  >();
 
   constructor(
     private readonly repo: EscrowRepository,
@@ -406,7 +410,7 @@ export class EscrowService {
     };
   }
 
-  async uploadEvidence(id: string, file?: UploadFileInput) {
+  async uploadEvidence(id: string, file?: UploadFileInput, userId?: string) {
     if (!file || !file.buffer) {
       throw new AppException(
         ErrorCode.VALIDATION_ERROR,
@@ -428,20 +432,67 @@ export class EscrowService {
     }
 
     const escrow = await this.getOrFail(id);
+    if (!userId) {
+      throw new AppException(
+        ErrorCode.UNAUTHORIZED_ACTION,
+        'Authenticated user is required to upload evidence',
+      );
+    }
+    const maxFileBytes =
+      Number(this.config.get('EVIDENCE_MAX_FILE_BYTES')) || 10 * 1024 * 1024;
+    const userLimit =
+      Number(this.config.get('EVIDENCE_USER_DAILY_BYTES')) || 50 * 1024 * 1024;
+    const orderLimit =
+      Number(this.config.get('EVIDENCE_ORDER_DAILY_BYTES')) || 20 * 1024 * 1024;
+    const now = Date.now();
+    const expiresAt = now + 24 * 60 * 60 * 1000;
+    const userKey = `user:${userId}`;
+    const orderKey = `order:${escrow.orderId}`;
+    const userUsage = this.getEvidenceUsage(userKey, now, expiresAt);
+    const orderUsage = this.getEvidenceUsage(orderKey, now, expiresAt);
+    if (
+      file.size > maxFileBytes ||
+      userUsage.bytes + file.size > userLimit ||
+      orderUsage.bytes + file.size > orderLimit
+    ) {
+      throw new AppException(
+        ErrorCode.VALIDATION_ERROR,
+        'Evidence upload quota exceeded',
+      );
+    }
+    // Reserve synchronously before the first await so concurrent requests cannot
+    // both pass the same quota check. Failed uploads release this reservation.
+    userUsage.bytes += file.size;
+    orderUsage.bytes += file.size;
     const ext = file.originalname.split('.').pop() || 'jpg';
     const key = `evidence/${escrow.escrowId}/${Date.now()}.${ext}`;
 
-    const result = await this.fileStorage.uploadFile({
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      buffer: file.buffer,
-      size: file.size,
-      key,
-    });
+    try {
+      const result = await this.fileStorage.uploadFile({
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        buffer: file.buffer,
+        size: file.size,
+        key,
+      });
+      await this.repo.update(id, { evidenceUrl: result.url });
+      return { url: result.url };
+    } catch (error) {
+      userUsage.bytes -= file.size;
+      orderUsage.bytes -= file.size;
+      throw error;
+    }
+  }
 
-    await this.repo.update(id, { evidenceUrl: result.url });
-
-    return { url: result.url };
+  private getEvidenceUsage(key: string, now: number, expiresAt: number) {
+    for (const [usageKey, usage] of this.evidenceUsage) {
+      if (usage.expiresAt <= now) this.evidenceUsage.delete(usageKey);
+    }
+    const current = this.evidenceUsage.get(key);
+    if (current && current.expiresAt > now) return current;
+    const fresh = { bytes: 0, expiresAt };
+    this.evidenceUsage.set(key, fresh);
+    return fresh;
   }
 
   async release(dto: ReleaseEscrowDto) {

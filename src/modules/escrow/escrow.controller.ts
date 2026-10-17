@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -27,6 +28,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ResourceOwnerGuard } from '../../common/guards/resource-owner.guard';
 import { ResourceOwner } from '../../common/decorators/resource-owner.decorator';
 import { ResourceType } from '../../common/interfaces/resource-owner.interface';
+import type { Request } from 'express';
+
+type AuthenticatedRequest = Request & {
+  user?: { userId?: string; sub?: string };
+};
 
 @Controller('escrows')
 export class EscrowController {
@@ -81,13 +87,22 @@ export class EscrowController {
   @UseGuards(JwtAuthGuard, ResourceOwnerGuard)
   @ResourceOwner(ResourceType.ESCROW)
   @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+    FileInterceptor('file', {
+      limits: {
+        fileSize: Number(process.env.EVIDENCE_MAX_FILE_BYTES) || 10 * 1024 * 1024,
+      },
+    }),
   )
   uploadEvidence(
     @Param('id') id: string,
     @UploadedFile() file?: UploadFileInput,
+    @Req() request?: AuthenticatedRequest,
   ) {
-    return this.service.uploadEvidence(id, file);
+    return this.service.uploadEvidence(
+      id,
+      file,
+      request?.user?.userId ?? request?.user?.sub,
+    );
   }
 
   /** Get escrow status with live on-chain data */
