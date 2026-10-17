@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BaseRepository } from '../../common/base.repository';
 import { AppUser } from '@prisma/client';
+import { normalizeAlias } from './alias-normalization';
 
 @Injectable()
 export class UsersRepository extends BaseRepository {
@@ -24,7 +25,9 @@ export class UsersRepository extends BaseRepository {
   }
 
   findByAlias(alias: string): Promise<AppUser | null> {
-    return this.prisma.appUser.findUnique({ where: { alias } });
+    return this.prisma.appUser.findUnique({
+      where: { aliasNormalized: normalizeAlias(alias) },
+    });
   }
 
   async findOrCreateByPublicKey(publicKey: string): Promise<AppUser> {
@@ -37,7 +40,9 @@ export class UsersRepository extends BaseRepository {
   }
 
   async isAliasAvailable(alias: string): Promise<boolean> {
-    const found = await this.prisma.appUser.findUnique({ where: { alias } });
+    const found = await this.prisma.appUser.findUnique({
+      where: { aliasNormalized: normalizeAlias(alias) },
+    });
     return found === null;
   }
 
