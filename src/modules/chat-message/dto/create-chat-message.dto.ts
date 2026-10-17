@@ -1,4 +1,4 @@
-import { IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateChatMessageDto {
   @IsUUID()
@@ -9,4 +9,8 @@ export class CreateChatMessageDto {
 
   @IsString()
   content: string;
+
+  @IsOptional()
+  @IsUUID()
+  clientMessageId?: string;
 }
